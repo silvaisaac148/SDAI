@@ -1,0 +1,2596 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SDAI — Sistema de Detección y Alertas de Intrusiones</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
+<script src="https://unpkg.com/globe.gl@2.27.4/dist/globe.gl.min.js"></script>
+<style>
+  :root {
+    --bg-0:        #07090F;
+    --bg-1:        #0B0F19;
+    --bg-2:        #111827;
+    --bg-3:        #161E2F;
+    --line:        rgba(148,163,184,.08);
+    --line-hi:     rgba(148,163,184,.16);
+    --text:        #E5E7EB;
+    --text-dim:    #94A3B8;
+    --text-mute:   #64748B;
+
+    --ok:          #22FF99;     /* neon green */
+    --ok-soft:     rgba(34,255,153,.14);
+    --warn:        #FFB020;
+    --warn-soft:   rgba(255,176,32,.14);
+    --crit:        #FF3860;     /* crimson neon */
+    --crit-soft:   rgba(255,56,96,.16);
+    --info:        #4FB8FF;
+    --info-soft:   rgba(79,184,255,.14);
+    --purple:      #B388FF;
+  }
+
+  html, body { background: var(--bg-0); color: var(--text); }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-image:
+      radial-gradient(1100px 600px at 15% -10%, rgba(79,184,255,.07), transparent 60%),
+      radial-gradient(900px 500px at 90% 0%, rgba(255,56,96,.05), transparent 60%),
+      radial-gradient(900px 700px at 50% 110%, rgba(34,255,153,.04), transparent 60%);
+    background-attachment: fixed;
+    letter-spacing: -0.005em;
+  }
+  .font-mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-feature-settings: "ss01","cv01","tnum"; }
+  .font-display { font-family: 'Outfit', 'Inter', sans-serif; letter-spacing: -0.02em; }
+
+  /* Glass panel */
+  .glass {
+    background: linear-gradient(180deg, rgba(22,30,47,.62), rgba(17,24,39,.42));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.03) inset,
+      0 20px 50px -25px rgba(0,0,0,.6);
+  }
+  .glass-tight {
+    background: linear-gradient(180deg, rgba(22,30,47,.5), rgba(17,24,39,.35));
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+
+  .hairline { border: 1px solid var(--line); }
+  .hairline-hi { border: 1px solid var(--line-hi); }
+  .divider { height: 1px; background: var(--line); }
+
+  /* Scanline / grid texture for header */
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 80%);
+  }
+
+  /* Pulse for status indicators */
+  @keyframes pulse-ring {
+    0%   { transform: scale(.9);  opacity: .65; }
+    70%  { transform: scale(1.6); opacity: 0; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+  .pulse-ring::after {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: .4;
+    animation: pulse-ring 1.8s cubic-bezier(0.4,0,0.6,1) infinite;
+  }
+
+  /* Shield glow */
+  .shield-glow-ok   { box-shadow: 0 0 0 1px rgba(34,255,153,.35), 0 0 40px rgba(34,255,153,.35), 0 0 80px rgba(34,255,153,.18) inset; }
+  .shield-glow-warn { box-shadow: 0 0 0 1px rgba(255,176,32,.35), 0 0 40px rgba(255,176,32,.35), 0 0 80px rgba(255,176,32,.18) inset; }
+  .shield-glow-crit { box-shadow: 0 0 0 1px rgba(255,56,96,.45), 0 0 40px rgba(255,56,96,.45), 0 0 80px rgba(255,56,96,.22) inset; }
+
+  /* Severity gradient borders */
+  .sev-low    { background: linear-gradient(180deg, rgba(79,184,255,.08), rgba(79,184,255,0) 60%), linear-gradient(180deg, rgba(22,30,47,.6), rgba(17,24,39,.35)); border-left: 2px solid var(--info); }
+  .sev-med    { background: linear-gradient(180deg, rgba(255,176,32,.10), rgba(255,176,32,0) 60%), linear-gradient(180deg, rgba(22,30,47,.6), rgba(17,24,39,.35)); border-left: 2px solid var(--warn); }
+  .sev-high   { background: linear-gradient(180deg, rgba(255,56,96,.12),  rgba(255,56,96,0)  60%), linear-gradient(180deg, rgba(22,30,47,.6), rgba(17,24,39,.35)); border-left: 2px solid var(--crit); }
+
+  /* Protocol pills */
+  .pill { display:inline-flex; align-items:center; gap:6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .04em; }
+  .pill-tcp  { color:#7ED4FF; background: rgba(79,184,255,.10);  box-shadow: inset 0 0 0 1px rgba(79,184,255,.25); }
+  .pill-udp  { color:#C7B0FF; background: rgba(179,136,255,.10); box-shadow: inset 0 0 0 1px rgba(179,136,255,.25); }
+  .pill-icmp { color:#FFC97A; background: rgba(255,176,32,.10);  box-shadow: inset 0 0 0 1px rgba(255,176,32,.28); }
+  .pill-arp  { color:#9AF7C5; background: rgba(34,255,153,.10);  box-shadow: inset 0 0 0 1px rgba(34,255,153,.25); }
+  .pill-dns  { color:#FFB0C9; background: rgba(255,56,96,.10);   box-shadow: inset 0 0 0 1px rgba(255,56,96,.22); }
+
+  /* Packet table rows */
+  .pkt-row { transition: background .15s ease, transform .15s ease; }
+  .pkt-row:hover { background: rgba(148,163,184,.06); }
+  .pkt-row.selected { background: rgba(79,184,255,.07); box-shadow: inset 2px 0 0 var(--info); }
+  @keyframes row-in {
+    from { background: rgba(34,255,153,.08); transform: translateY(-2px); opacity: 0; }
+    to   { background: transparent;          transform: translateY(0);    opacity: 1; }
+  }
+  .pkt-row-new { animation: row-in .55s ease; }
+
+  /* Custom slider */
+  input[type="range"].sdai {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px; border-radius: 999px;
+    background: linear-gradient(90deg, var(--info) var(--p,50%), rgba(148,163,184,.18) var(--p,50%));
+    outline: none;
+  }
+  input[type="range"].sdai::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #E5E7EB;
+    box-shadow: 0 0 0 4px rgba(79,184,255,.15), 0 0 0 1px rgba(79,184,255,.6);
+    cursor: pointer;
+  }
+  input[type="range"].sdai::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #E5E7EB; border: none;
+    box-shadow: 0 0 0 4px rgba(79,184,255,.15), 0 0 0 1px rgba(79,184,255,.6);
+    cursor: pointer;
+  }
+
+  /* Buttons */
+  .btn { display:inline-flex; align-items:center; gap:6px; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; transition: all .15s ease; border: 1px solid var(--line-hi); background: rgba(148,163,184,.05); color: var(--text); }
+  .btn:hover { background: rgba(148,163,184,.10); border-color: rgba(148,163,184,.28); }
+  .btn-ghost { background: transparent; border-color: var(--line); }
+  .btn-primary {
+    background: linear-gradient(180deg, rgba(34,255,153,.18), rgba(34,255,153,.06));
+    border: 1px solid rgba(34,255,153,.4);
+    color: #BFFFE0;
+    text-shadow: 0 0 12px rgba(34,255,153,.4);
+  }
+  .btn-primary:hover { background: linear-gradient(180deg, rgba(34,255,153,.28), rgba(34,255,153,.10)); border-color: rgba(34,255,153,.7); }
+
+  .icon-btn { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border-radius: 8px; border: 1px solid var(--line); color: var(--text-dim); }
+  .icon-btn:hover { color: var(--text); background: rgba(148,163,184,.08); }
+
+  /* Tag */
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 6px 4px 10px; border-radius: 6px;
+    background: rgba(255,56,96,.08);
+    border: 1px solid rgba(255,56,96,.25);
+    color: #FFC2D0;
+    font-size: 11px;
+  }
+  .tag .x { color: rgba(255,194,208,.6); cursor: pointer; padding: 0 4px; }
+  .tag .x:hover { color: #FFD6E0; }
+
+  /* JSON syntax highlight */
+  .j-key   { color: #7ED4FF; }
+  .j-str   { color: #9AF7C5; }
+  .j-num   { color: #FFC97A; }
+  .j-bool  { color: #C7B0FF; }
+  .j-null  { color: #FF93AB; }
+  .j-punct { color: var(--text-mute); }
+
+  /* Drawer */
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100vh; width: min(520px, 92vw);
+    background: linear-gradient(180deg, rgba(11,15,25,.92), rgba(7,9,15,.95));
+    border-left: 1px solid var(--line-hi);
+    backdrop-filter: blur(20px) saturate(150%);
+    transform: translateX(110%); transition: transform .35s cubic-bezier(.22,.61,.36,1);
+    z-index: 50;
+    box-shadow: -30px 0 60px -20px rgba(0,0,0,.7);
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-backdrop {
+    position: fixed; inset: 0; background: rgba(7,9,15,.45);
+    backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: opacity .3s ease;
+    z-index: 40;
+  }
+  .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.15); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.25); }
+
+  /* Sparkline */
+  .spark path { stroke: var(--info); stroke-width: 1.5; fill: none; }
+  .spark .fill { fill: rgba(79,184,255,.12); stroke: none; }
+
+  /* Fade in on load */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px);} to {opacity:1; transform:none;} }
+  .fade-up { animation: fadeUp .6s ease both; }
+  .fade-up.d1 { animation-delay: .05s; }
+  .fade-up.d2 { animation-delay: .12s; }
+  .fade-up.d3 { animation-delay: .2s; }
+  .fade-up.d4 { animation-delay: .28s; }
+
+  /* Resolved fade out */
+  @keyframes resolve-out {
+    0%   { opacity: 1; transform: translateX(0); max-height: 240px; margin-bottom: 8px; }
+    60%  { opacity: 0; transform: translateX(40px); max-height: 240px; }
+    100% { opacity: 0; transform: translateX(40px); max-height: 0; margin-bottom: 0; padding-top:0; padding-bottom:0; border-width:0; }
+  }
+  .resolving { animation: resolve-out .6s ease forwards; overflow: hidden; }
+
+  /* Heartbeat strip */
+  .heartbeat-bar { height: 30px; }
+  .heartbeat-bar .bar {
+    width: 3px; border-radius: 2px;
+    background: linear-gradient(180deg, var(--ok), rgba(34,255,153,.35));
+    transition: height .3s ease, background .3s ease;
+  }
+  .heartbeat-bar .bar.alert {
+    background: linear-gradient(180deg, var(--crit), rgba(255,56,96,.35));
+  }
+
+  /* Tab */
+  .tab { padding: 5px 10px; border-radius: 6px; font-size: 11px; color: var(--text-dim); cursor: pointer; }
+  .tab.active { background: rgba(148,163,184,.10); color: var(--text); border: 1px solid var(--line-hi); }
+
+  /* Topbar live dot */
+  @keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .live-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--ok); box-shadow: 0 0 10px var(--ok); animation: dot-blink 1.4s ease-in-out infinite; }
+
+  /* Globe.gl container */
+  #geoMap {
+    width: 100%; height: 100%; min-height: 240px;
+    background:
+      radial-gradient(ellipse at center, rgba(79,184,255,.05), transparent 60%),
+      #07090F;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  #geoMap canvas { display: block; }
+  .globe-tooltip {
+    position: absolute; z-index: 5;
+    pointer-events: none;
+    background: rgba(11,15,25,.92);
+    border: 1px solid rgba(148,163,184,.24);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #E5E7EB;
+    backdrop-filter: blur(8px);
+    transition: opacity .15s;
+  }
+  .globe-tooltip .ip { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+  .globe-tooltip .crit { color: #FF3860; }
+  .globe-tooltip .warn { color: #FFB020; }
+  .globe-tooltip .info { color: #4FB8FF; }
+  .globe-tooltip .ok   { color: #22FF99; }
+
+  /* Subtle scanning line on shield */
+  @keyframes scan {
+    0%   { transform: translateY(-100%); opacity: 0; }
+    20%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateY(100%); opacity: 0; }
+  }
+  .scan-line { position:absolute; inset: 0; overflow: hidden; border-radius: 9999px; pointer-events: none; }
+  .scan-line::after {
+    content: ""; position: absolute; left: 0; right: 0; height: 30%;
+    background: linear-gradient(180deg, transparent, rgba(34,255,153,.18), transparent);
+    animation: scan 2.4s linear infinite;
+  }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- =================== TOP BAR =================== -->
+<header class="relative">
+  <div class="absolute inset-0 grid-bg pointer-events-none"></div>
+  <div class="relative px-6 pt-5 pb-4 border-b border-[color:var(--line)] flex items-center gap-6">
+    <!-- Logo / isotype -->
+    <div class="flex items-center gap-3 shrink-0">
+      <div class="relative w-10 h-10 rounded-xl flex items-center justify-center"
+           style="background: linear-gradient(135deg, #0E1626, #182338); border: 1px solid var(--line-hi);">
+        <!-- Isotype: shield + concentric radar -->
+        <svg viewBox="0 0 32 32" class="w-6 h-6">
+          <defs>
+            <linearGradient id="lg" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stop-color="#22FF99"/>
+              <stop offset="100%" stop-color="#4FB8FF"/>
+            </linearGradient>
+          </defs>
+          <path d="M16 2 L27 6 V15 C27 22 22 27 16 30 C10 27 5 22 5 15 V6 Z"
+                fill="none" stroke="url(#lg)" stroke-width="1.6"/>
+          <circle cx="16" cy="16" r="3"  fill="none" stroke="#22FF99" stroke-width="1.2"/>
+          <circle cx="16" cy="16" r="6.5" fill="none" stroke="#4FB8FF" stroke-width=".8" opacity=".6"/>
+          <path d="M16 16 L23 9" stroke="#22FF99" stroke-width="1.2" stroke-linecap="round"/>
+          <circle cx="23" cy="9" r="1.2" fill="#22FF99"/>
+        </svg>
+      </div>
+      <div class="leading-tight">
+        <div class="font-display text-[18px] font-bold tracking-tight">SDAI<span class="text-[color:var(--ok)]">.</span></div>
+        <div class="text-[10px] font-mono uppercase tracking-[0.18em] text-[color:var(--text-mute)]">Intrusion Detection &amp; Alert System</div>
+      </div>
+    </div>
+
+    <!-- Path / breadcrumbs -->
+    <div class="hidden md:flex items-center gap-2 text-[11px] font-mono text-[color:var(--text-mute)]">
+      <span class="px-2 py-1 rounded border border-[color:var(--line)] bg-[rgba(148,163,184,.04)]">tenant://pyme-acme</span>
+      <span>/</span>
+      <span>sensor-01</span>
+      <span>/</span>
+      <span class="text-[color:var(--text-dim)]">dashboard</span>
+    </div>
+
+    <!-- Spacer -->
+    <div class="flex-1"></div>
+
+    <!-- Right tools -->
+    <div class="flex items-center gap-2">
+      <div id="liveStatus" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border border-[color:var(--line)] text-[11px] font-mono text-[color:var(--text-dim)]">
+        <span id="liveDot" class="live-dot"></span>
+        <span id="liveStatusLabel">LIVE · esperando sensor…</span>
+      </div>
+      <button id="btnCaptureToggle" class="btn" title="Encender / Apagar capturador">
+        <svg id="iconCapPower" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+        <span id="lblCapture">Encender</span>
+      </button>
+      <button id="btnCapturePause" class="btn btn-ghost" title="Pausar / Reanudar captura" disabled>
+        <svg id="iconCapPause" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        <span id="lblCapturePause">Pausa</span>
+      </button>
+      <button id="btnSearch" class="icon-btn" title="Buscar (Ctrl+F)">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </button>
+      <button id="btnExport" class="icon-btn" title="Exportar reporte CSV">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      </button>
+      <button id="btnSettings" class="icon-btn" title="Ajustes">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+      </button>
+      <div class="w-px h-6 bg-[color:var(--line)] mx-1"></div>
+      <button id="btnProfile" class="flex items-center gap-2 px-1.5 py-1 rounded-md hover:bg-[rgba(148,163,184,.08)] transition" title="Perfil">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] font-semibold"
+             style="background: linear-gradient(135deg,#1d2a44,#0e1626); border:1px solid var(--line-hi);">IS</div>
+        <div class="hidden md:block leading-tight text-left">
+          <div class="text-[12px]">I. Silva</div>
+          <div class="text-[10px] font-mono text-[color:var(--text-mute)]">SecOps · Admin</div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Bar -->
+  <div class="relative px-6 py-5 border-b border-[color:var(--line)]">
+    <div class="grid grid-cols-12 gap-4">
+
+      <!-- Shield Status -->
+      <div class="col-span-12 lg:col-span-3 fade-up">
+        <div class="glass p-4 flex items-center gap-4 h-full">
+          <div class="relative w-[78px] h-[78px] shrink-0">
+            <div id="shieldHalo" class="absolute inset-0 rounded-full shield-glow-ok transition-all duration-500"></div>
+            <div class="scan-line"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <svg viewBox="0 0 32 32" class="w-9 h-9" fill="none" stroke="currentColor" stroke-width="1.5"
+                   id="shieldIcon" style="color: var(--ok);">
+                <path d="M16 3 L26 7 V15 C26 21 22 26 16 28 C10 26 6 21 6 15 V7 Z"/>
+                <path d="m11 16 4 4 7-8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-[10px] font-mono uppercase tracking-[0.18em] text-[color:var(--text-mute)]">Estado de la red</div>
+            <div id="shieldLabel" class="font-display text-[22px] font-bold text-[color:var(--ok)] mt-0.5 leading-tight">SEGURA</div>
+            <div class="text-[11px] text-[color:var(--text-dim)] mt-0.5">Tráfico nominal · sin amenazas críticas activas</div>
+            <!-- Heartbeat bars -->
+            <div id="heartbeat" class="heartbeat-bar mt-2 flex items-end gap-[3px]"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs grid 4 cols -->
+      <div class="col-span-12 lg:col-span-9 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <!-- Velocidad de red -->
+        <div class="glass p-4 fade-up d1">
+          <div class="flex items-start justify-between">
+            <div class="text-[10px] font-mono uppercase tracking-[0.16em] text-[color:var(--text-mute)]">Velocidad de Red</div>
+            <svg viewBox="0 0 24 24" class="w-4 h-4 text-[color:var(--info)]" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h3l2-5 4 10 3-7 2 4h4"/></svg>
+          </div>
+          <div class="mt-2 flex items-baseline gap-1.5">
+            <div id="kpiPps" class="font-mono text-[30px] font-semibold tracking-tight tabular-nums">342</div>
+            <div class="font-mono text-[12px] text-[color:var(--text-dim)]">pkt/s</div>
+          </div>
+          <div class="mt-1.5 flex items-center justify-between">
+            <span class="text-[11px] text-[color:var(--text-dim)]">↑ <span id="kpiPpsDelta" class="text-[color:var(--ok)] font-mono">+8.4%</span> 60s</span>
+            <svg class="spark" viewBox="0 0 80 22" preserveAspectRatio="none" width="80" height="22">
+              <path id="sparkPath" d="M0 16 L10 12 L20 14 L30 8 L40 11 L50 6 L60 10 L70 4 L80 9"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Alertas Críticas -->
+        <div class="glass p-4 fade-up d2 relative overflow-hidden">
+          <div class="flex items-start justify-between">
+            <div class="text-[10px] font-mono uppercase tracking-[0.16em] text-[color:var(--text-mute)]">Alertas Críticas</div>
+            <span class="relative inline-flex w-2.5 h-2.5 rounded-full text-[color:var(--crit)] pulse-ring">
+              <span class="absolute inset-0 rounded-full bg-current"></span>
+            </span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-1.5">
+            <div id="kpiCritical" class="font-mono text-[30px] font-semibold tracking-tight tabular-nums" style="color: var(--crit);">3</div>
+            <div class="font-mono text-[12px] text-[color:var(--text-dim)]">activas</div>
+          </div>
+          <div class="mt-1.5 text-[11px] text-[color:var(--text-dim)]">
+            <span class="font-mono" style="color: var(--crit)">2</span> Port Scan ·
+            <span class="font-mono" style="color: var(--warn)">1</span> Brute Force
+          </div>
+        </div>
+
+        <!-- IP más activa -->
+        <div class="glass p-4 fade-up d3">
+          <div class="flex items-start justify-between">
+            <div class="text-[10px] font-mono uppercase tracking-[0.16em] text-[color:var(--text-mute)]">IP más activa</div>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[color:var(--line-hi)] text-[color:var(--warn)]">SUSPECT</span>
+          </div>
+          <div class="mt-2 font-mono text-[22px] font-semibold tracking-tight tabular-nums">192.168.1.45</div>
+          <div class="mt-1.5 flex items-center justify-between text-[11px] text-[color:var(--text-dim)]">
+            <span>4,218 paquetes · 18 puertos</span>
+            <button class="text-[color:var(--info)] hover:underline">inspect →</button>
+          </div>
+        </div>
+
+        <!-- Uptime -->
+        <div class="glass p-4 fade-up d4">
+          <div class="flex items-start justify-between">
+            <div class="text-[10px] font-mono uppercase tracking-[0.16em] text-[color:var(--text-mute)]">Uptime del Capturador</div>
+            <svg viewBox="0 0 24 24" class="w-4 h-4 text-[color:var(--ok)]" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          </div>
+          <div class="mt-2 font-mono text-[30px] font-semibold tracking-tight tabular-nums" id="kpiUptime">02h 45m 12s</div>
+          <div class="mt-1.5 text-[11px] text-[color:var(--text-dim)]">desde <span class="font-mono">2026-05-20 09:14:38</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- =================== MAIN GRID =================== -->
+<main class="px-6 py-5 grid grid-cols-12 gap-5">
+
+  <!-- ============== LEFT: PACKET MONITOR ============== -->
+  <section class="col-span-12 xl:col-span-7 glass overflow-hidden fade-up d1 flex flex-col" style="min-height: 720px;">
+    <!-- Panel header -->
+    <div class="px-5 py-3.5 flex items-center gap-3 border-b border-[color:var(--line)]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-1.5 h-6 rounded-sm" style="background: linear-gradient(180deg, var(--info), rgba(79,184,255,.2));"></div>
+        <div>
+          <div class="font-display text-[15px] font-semibold leading-tight">Monitor de Paquetes en Vivo</div>
+          <div class="text-[11px] font-mono text-[color:var(--text-mute)]">SSE · /live/stream · interface eth0</div>
+        </div>
+      </div>
+      <div class="flex-1"></div>
+      <div class="flex items-center gap-1">
+        <div id="protoFilters" class="flex items-center gap-1 mr-2">
+          <button class="tab active" data-filter="all">ALL</button>
+          <button class="tab" data-filter="TCP">TCP</button>
+          <button class="tab" data-filter="UDP">UDP</button>
+          <button class="tab" data-filter="ICMP">ICMP</button>
+          <button class="tab" data-filter="DNS">DNS</button>
+        </div>
+        <button id="autoScrollBtn" class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v16m0 0 6-6m-6 6-6-6"/></svg>
+          Auto-scroll
+        </button>
+        <button id="pauseBtn" class="btn">
+          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          <span id="pauseLabel">Pausa</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Table header -->
+    <div class="px-5 py-2 grid grid-cols-[44px_92px_1fr_1fr_70px_70px_28px] gap-3 text-[10px] font-mono uppercase tracking-[0.16em] text-[color:var(--text-mute)] border-b border-[color:var(--line)]">
+      <div>#</div>
+      <div>TIME</div>
+      <div>SRC IP</div>
+      <div>DST IP</div>
+      <div>PROTO</div>
+      <div class="text-right">BYTES</div>
+      <div></div>
+    </div>
+
+    <!-- Packet rows scroll container -->
+    <div id="pktScroll" class="overflow-y-auto flex-1 font-mono text-[12px]"></div>
+
+    <!-- Stats footer -->
+    <div class="px-5 py-2.5 border-t border-[color:var(--line)] flex items-center gap-6 text-[11px] font-mono text-[color:var(--text-dim)]">
+      <div>TOTAL <span id="statTotal" class="text-white tabular-nums">0</span></div>
+      <div>TCP <span id="statTcp" class="tabular-nums text-[#7ED4FF]">0</span></div>
+      <div>UDP <span id="statUdp" class="tabular-nums text-[#C7B0FF]">0</span></div>
+      <div>ICMP <span id="statIcmp" class="tabular-nums text-[#FFC97A]">0</span></div>
+      <div>DNS <span id="statDns" class="tabular-nums text-[#FFB0C9]">0</span></div>
+      <div class="flex-1 text-right">ventana: 60s · buffer: <span id="statBuffer" class="tabular-nums text-white">0</span>/300</div>
+    </div>
+  </section>
+
+  <!-- ============== RIGHT COLUMN ============== -->
+  <aside class="col-span-12 xl:col-span-5 flex flex-col gap-5">
+
+    <!-- ===== ALERTS PANEL ===== -->
+    <section class="glass overflow-hidden fade-up d2 flex flex-col" style="min-height: 380px;">
+      <div class="px-5 py-3.5 flex items-center gap-3 border-b border-[color:var(--line)]">
+        <div class="flex items-center gap-2.5">
+          <div class="w-1.5 h-6 rounded-sm" style="background: linear-gradient(180deg, var(--crit), rgba(255,56,96,.2));"></div>
+          <div>
+            <div class="font-display text-[15px] font-semibold leading-tight">Registro de Alertas</div>
+            <div class="text-[11px] font-mono text-[color:var(--text-mute)]">GET /alerts · motor heurístico v2.1</div>
+          </div>
+        </div>
+        <div class="flex-1"></div>
+        <div id="alertSummary" class="flex items-center gap-1.5 text-[11px] font-mono">
+          <span class="px-2 py-0.5 rounded" style="background: var(--crit-soft); color:#FFB0C9;">ALTA <span id="ctHigh" class="tabular-nums">2</span></span>
+          <span class="px-2 py-0.5 rounded" style="background: var(--warn-soft); color:#FFC97A;">MED <span id="ctMed" class="tabular-nums">2</span></span>
+          <span class="px-2 py-0.5 rounded" style="background: var(--info-soft); color:#7ED4FF;">BAJA <span id="ctLow" class="tabular-nums">1</span></span>
+        </div>
+      </div>
+
+      <div id="alertsList" class="p-3 overflow-y-auto flex-1 space-y-2"></div>
+    </section>
+
+    <!-- ===== CONFIG CONSOLE ===== -->
+    <section class="glass overflow-hidden fade-up d3 flex flex-col">
+      <div class="px-5 py-3.5 flex items-center gap-3 border-b border-[color:var(--line)]">
+        <div class="flex items-center gap-2.5">
+          <div class="w-1.5 h-6 rounded-sm" style="background: linear-gradient(180deg, var(--ok), rgba(34,255,153,.2));"></div>
+          <div>
+            <div class="font-display text-[15px] font-semibold leading-tight">Consola de Umbrales</div>
+            <div class="text-[11px] font-mono text-[color:var(--text-mute)]">POST /config · aplicar en caliente</div>
+          </div>
+        </div>
+        <div class="flex-1"></div>
+        <div class="text-[10px] font-mono text-[color:var(--text-mute)] uppercase tracking-wider">
+          <span id="dirtyDot" class="inline-block w-1.5 h-1.5 rounded-full bg-[color:var(--text-mute)] mr-1.5 align-middle"></span>
+          <span id="dirtyLabel">sincronizado</span>
+        </div>
+      </div>
+
+      <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <!-- Slider: Port Scan -->
+        <div>
+          <div class="flex items-baseline justify-between mb-1">
+            <label class="text-[12px] font-medium">Umbral Escaneo de Puertos</label>
+            <span class="font-mono text-[12px] tabular-nums"><span id="vPort">20</span> <span class="text-[color:var(--text-mute)]">pts/min</span></span>
+          </div>
+          <input type="range" class="sdai" id="sPort" min="5" max="100" value="20" />
+          <div class="flex justify-between mt-1 text-[10px] font-mono text-[color:var(--text-mute)]">
+            <span>5</span><span>permisivo</span><span>100</span>
+          </div>
+        </div>
+
+        <!-- Slider: Brute Force -->
+        <div>
+          <div class="flex items-baseline justify-between mb-1">
+            <label class="text-[12px] font-medium">Límite Fuerza Bruta</label>
+            <span class="font-mono text-[12px] tabular-nums"><span id="vBrute">8</span> <span class="text-[color:var(--text-mute)]">fails/60s</span></span>
+          </div>
+          <input type="range" class="sdai" id="sBrute" min="3" max="30" value="8" />
+          <div class="flex justify-between mt-1 text-[10px] font-mono text-[color:var(--text-mute)]">
+            <span>3</span><span>estricto</span><span>30</span>
+          </div>
+        </div>
+
+        <!-- Slider: DoS Rate -->
+        <div>
+          <div class="flex items-baseline justify-between mb-1">
+            <label class="text-[12px] font-medium">Tasa DoS permitida</label>
+            <span class="font-mono text-[12px] tabular-nums"><span id="vDos">1200</span> <span class="text-[color:var(--text-mute)]">pkt/s</span></span>
+          </div>
+          <input type="range" class="sdai" id="sDos" min="200" max="5000" step="50" value="1200" />
+          <div class="flex justify-between mt-1 text-[10px] font-mono text-[color:var(--text-mute)]">
+            <span>200</span><span>protección agresiva</span><span>5000</span>
+          </div>
+        </div>
+
+        <!-- Slider: Stream rate (afecta velocidad de simulación) -->
+        <div>
+          <div class="flex items-baseline justify-between mb-1">
+            <label class="text-[12px] font-medium">Frecuencia de muestreo</label>
+            <span class="font-mono text-[12px] tabular-nums"><span id="vRate">450</span> <span class="text-[color:var(--text-mute)]">ms</span></span>
+          </div>
+          <input type="range" class="sdai" id="sRate" min="100" max="1500" step="50" value="450" />
+          <div class="flex justify-between mt-1 text-[10px] font-mono text-[color:var(--text-mute)]">
+            <span>rápido</span><span></span><span>lento</span>
+          </div>
+        </div>
+
+        <!-- Blacklist -->
+        <div class="md:col-span-2">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-[12px] font-medium">Lista Negra de IPs</label>
+            <span class="text-[10px] font-mono text-[color:var(--text-mute)]"><span id="blCount">3</span> entradas · bloqueo en kernel</span>
+          </div>
+          <div class="flex items-stretch gap-2">
+            <div class="flex-1 flex items-center gap-2 px-3 rounded-md border border-[color:var(--line-hi)] bg-[rgba(11,15,25,.6)] font-mono">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-[color:var(--text-mute)]" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <input id="blInput" placeholder="ej. 203.0.113.42 / 24" class="bg-transparent outline-none flex-1 text-[12px] placeholder:text-[color:var(--text-mute)] py-2" />
+            </div>
+            <button id="blAdd" class="btn">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              Agregar
+            </button>
+          </div>
+          <div id="blTags" class="mt-3 flex flex-wrap gap-1.5"></div>
+        </div>
+
+      </div>
+
+      <div class="px-5 py-3.5 border-t border-[color:var(--line)] flex items-center gap-3">
+        <div class="text-[11px] font-mono text-[color:var(--text-mute)] flex-1">
+          <span class="text-[color:var(--text-dim)]">Vista previa:</span>
+          <code id="cfgPreview" class="ml-1">{ port:20, brute:8, dos:1200, rate:450ms, bl:3 }</code>
+        </div>
+        <button class="btn btn-ghost" id="cfgReset">Restablecer</button>
+        <button class="btn btn-primary" id="cfgApply">
+          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>
+          Aplicar en caliente
+        </button>
+      </div>
+    </section>
+
+  </aside>
+
+  <!-- ============== ROW 2: TOPOLOGY · GEO · TREND ============== -->
+  <section class="col-span-12 xl:col-span-5 glass overflow-hidden fade-up d1 flex flex-col" style="min-height: 320px;">
+    <div class="px-5 py-3.5 flex items-center gap-3 border-b border-[color:var(--line)]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-1.5 h-6 rounded-sm" style="background: linear-gradient(180deg, var(--purple), rgba(179,136,255,.2));"></div>
+        <div>
+          <div class="font-display text-[15px] font-semibold leading-tight">Topología de Red</div>
+          <div class="text-[11px] font-mono text-[color:var(--text-mute)]">hosts internos · enlaces activos · estado</div>
+        </div>
+      </div>
+      <div class="flex-1"></div>
+      <div class="text-[10px] font-mono text-[color:var(--text-mute)]">
+        <span class="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style="background: var(--ok)"></span>limpio
+        <span class="inline-block w-1.5 h-1.5 rounded-full ml-2 mr-1 align-middle" style="background: var(--warn)"></span>sospechoso
+        <span class="inline-block w-1.5 h-1.5 rounded-full ml-2 mr-1 align-middle" style="background: var(--crit)"></span>comprometido
+      </div>
+    </div>
+    <div class="flex-1 relative p-3">
+      <svg id="topoSvg" viewBox="0 0 520 280" class="w-full h-full" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </section>
+
+  <section class="col-span-12 xl:col-span-4 glass overflow-hidden fade-up d2 flex flex-col" style="min-height: 320px;">
+    <div class="px-5 py-3.5 flex items-center gap-3 border-b border-[color:var(--line)]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-1.5 h-6 rounded-sm" style="background: linear-gradient(180deg, var(--crit), rgba(255,56,96,.2));"></div>
+        <div>
+          <div class="font-display text-[15px] font-semibold leading-tight">Mapa Global de Amenazas</div>
+          <div class="text-[11px] font-mono text-[color:var(--text-mute)]">origen de IPs externas · últimos 15m</div>
+        </div>
+      </div>
+      <div class="flex-1"></div>
+      <span class="text-[10px] font-mono text-[color:var(--text-mute)]"><span id="geoCount" class="text-white">7</span> nodos</span>
+    </div>
+    <div class="flex-1 relative p-3">
+      <div id="geoMap"></div>
+    </div>
+  </section>
+
+  <section class="col-span-12 xl:col-span-3 glass overflow-hidden fade-up d3 flex flex-col" style="min-height: 320px;">
+    <div class="px-5 py-3.5 flex items-center gap-3 border-b border-[color:var(--line)]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-1.5 h-6 rounded-sm" style="background: linear-gradient(180deg, var(--warn), rgba(255,176,32,.2));"></div>
+        <div>
+          <div class="font-display text-[15px] font-semibold leading-tight">Tendencia de Severidad</div>
+          <div class="text-[11px] font-mono text-[color:var(--text-mute)]">ventana 30m · stacked</div>
+        </div>
+      </div>
+    </div>
+    <div class="flex-1 relative p-3">
+      <svg id="trendSvg" viewBox="0 0 320 200" class="w-full h-full" preserveAspectRatio="none"></svg>
+      <div class="flex items-center gap-3 mt-1 text-[10px] font-mono text-[color:var(--text-mute)]">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:var(--crit)"></span>alta</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:var(--warn)"></span>media</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:var(--info)"></span>baja</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- =================== DRAWER (Packet Detail) =================== -->
+<div id="drawerBackdrop" class="drawer-backdrop"></div>
+<aside id="drawer" class="drawer flex flex-col">
+  <div class="px-5 py-4 border-b border-[color:var(--line)] flex items-center gap-3">
+    <div class="w-8 h-8 rounded-md flex items-center justify-center" style="background: rgba(79,184,255,.10); border: 1px solid rgba(79,184,255,.3);">
+      <svg viewBox="0 0 24 24" class="w-4 h-4 text-[color:var(--info)]" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="font-display text-[14px] font-semibold leading-tight">Paquete decodificado</div>
+      <div id="drawerSub" class="text-[11px] font-mono text-[color:var(--text-mute)] truncate">paquete #—</div>
+    </div>
+    <button class="icon-btn" id="drawerClose">
+      <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6 18 18M18 6 6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="px-5 py-3 border-b border-[color:var(--line)] grid grid-cols-3 gap-2 text-[11px] font-mono">
+    <div class="glass-tight px-3 py-2">
+      <div class="text-[9px] uppercase tracking-[0.16em] text-[color:var(--text-mute)]">Origen</div>
+      <div id="drawerSrc" class="text-white truncate">—</div>
+    </div>
+    <div class="glass-tight px-3 py-2">
+      <div class="text-[9px] uppercase tracking-[0.16em] text-[color:var(--text-mute)]">Destino</div>
+      <div id="drawerDst" class="text-white truncate">—</div>
+    </div>
+    <div class="glass-tight px-3 py-2">
+      <div class="text-[9px] uppercase tracking-[0.16em] text-[color:var(--text-mute)]">Protocolo</div>
+      <div id="drawerProto" class="text-white">—</div>
+    </div>
+  </div>
+
+  <div class="px-5 py-3 border-b border-[color:var(--line)] flex items-center gap-1">
+    <button class="tab active">JSON</button>
+    <button class="tab">Hex</button>
+    <button class="tab">Capas</button>
+    <div class="flex-1"></div>
+    <button class="icon-btn" title="Copiar">
+      <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+    </button>
+  </div>
+
+  <div id="drawerBody" class="flex-1 overflow-y-auto p-5 font-mono text-[12px] leading-relaxed"></div>
+
+  <div class="px-5 py-3 border-t border-[color:var(--line)] flex items-center gap-2">
+    <button class="btn btn-ghost flex-1" id="drawerBlacklist">
+      <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="m5 5 14 14"/></svg>
+      Bloquear IP origen
+    </button>
+    <button class="btn flex-1" id="drawerFollow">
+      <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14m0 0-5-5m5 5-5 5"/></svg>
+      Seguir flujo
+    </button>
+  </div>
+</aside>
+
+<!-- =================== TOAST =================== -->
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] hidden">
+  <div class="glass px-4 py-2.5 flex items-center gap-3 text-[12px]" style="border-color: rgba(34,255,153,.3);">
+    <svg viewBox="0 0 24 24" class="w-4 h-4 text-[color:var(--ok)]" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>
+    <span id="toastMsg" class="text-[color:var(--text)]">Cambios aplicados</span>
+  </div>
+</div>
+
+<!-- =================== SEARCH OVERLAY =================== -->
+<div id="searchOverlay" class="hidden fixed inset-0 z-[55] items-start justify-center pt-24" style="background: rgba(7,9,15,.55); backdrop-filter: blur(4px); display:none;">
+  <div class="glass w-[min(560px,92vw)] p-2 flex items-center gap-2">
+    <svg viewBox="0 0 24 24" class="w-4 h-4 ml-2 text-[color:var(--text-dim)]" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="searchInput" placeholder="Filtrar por IP, puerto o protocolo… (ESC para cerrar)" class="flex-1 bg-transparent outline-none font-mono text-[13px] py-2" autocomplete="off"/>
+    <span id="searchHits" class="text-[10px] font-mono text-[color:var(--text-mute)] mr-2"></span>
+    <button id="searchClear" class="btn btn-ghost text-[11px]">Limpiar</button>
+  </div>
+</div>
+
+<!-- =================== INVESTIGATE MODAL =================== -->
+<div id="invBackdrop" class="hidden fixed inset-0 z-[55]" style="background: rgba(7,9,15,.6); backdrop-filter: blur(3px);"></div>
+<div id="invModal" class="hidden fixed top-[8%] left-1/2 -translate-x-1/2 z-[56] w-[min(720px,94vw)] max-h-[84vh] overflow-hidden glass flex flex-col">
+  <div class="px-5 py-3.5 border-b border-[color:var(--line)] flex items-center gap-3">
+    <div class="w-8 h-8 rounded-md flex items-center justify-center" style="background: rgba(255,176,32,.10); border: 1px solid rgba(255,176,32,.3);">
+      <svg viewBox="0 0 24 24" class="w-4 h-4 text-[color:var(--warn)]" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="font-display text-[15px] font-semibold leading-tight">Investigación de IP</div>
+      <div id="invSub" class="text-[11px] font-mono text-[color:var(--text-mute)] truncate">—</div>
+    </div>
+    <button id="invClose" class="icon-btn"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6 18 18M18 6 6 18"/></svg></button>
+  </div>
+  <div id="invBody" class="overflow-y-auto p-5 space-y-4 text-[12px]"></div>
+  <div class="px-5 py-3 border-t border-[color:var(--line)] flex items-center gap-2">
+    <button id="invBlock" class="btn flex-1" style="border-color: rgba(255,56,96,.4); color:#FFB0C9; background: rgba(255,56,96,.08);">Bloquear esta IP</button>
+    <button id="invFilter" class="btn flex-1">Filtrar paquetes</button>
+  </div>
+</div>
+
+<!-- =================== SETTINGS MODAL =================== -->
+<div id="setBackdrop" class="hidden fixed inset-0 z-[55]" style="background: rgba(7,9,15,.6); backdrop-filter: blur(3px);"></div>
+<div id="setModal" class="hidden fixed top-[10%] left-1/2 -translate-x-1/2 z-[56] w-[min(560px,94vw)] glass flex flex-col">
+  <div class="px-5 py-3.5 border-b border-[color:var(--line)] flex items-center gap-3">
+    <div class="w-1.5 h-6 rounded-sm" style="background: linear-gradient(180deg, var(--info), rgba(79,184,255,.2));"></div>
+    <div class="font-display text-[15px] font-semibold">Ajustes del Dashboard</div>
+    <div class="flex-1"></div>
+    <button id="setClose" class="icon-btn"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6 18 18M18 6 6 18"/></svg></button>
+  </div>
+  <div class="p-5 space-y-5">
+    <div>
+      <div class="flex items-baseline justify-between mb-1">
+        <label class="text-[12px] font-medium">Refresco resumen (stats/summary)</label>
+        <span class="font-mono text-[12px]"><span id="vSetSum">3</span>s</span>
+      </div>
+      <input type="range" class="sdai" id="sSetSum" min="1" max="30" value="3"/>
+    </div>
+    <div>
+      <div class="flex items-baseline justify-between mb-1">
+        <label class="text-[12px] font-medium">Refresco PPS</label>
+        <span class="font-mono text-[12px]"><span id="vSetPps">1</span>s</span>
+      </div>
+      <input type="range" class="sdai" id="sSetPps" min="1" max="10" value="1"/>
+    </div>
+    <div>
+      <div class="flex items-baseline justify-between mb-1">
+        <label class="text-[12px] font-medium">Buffer de paquetes</label>
+        <span class="font-mono text-[12px]"><span id="vSetBuf">300</span></span>
+      </div>
+      <input type="range" class="sdai" id="sSetBuf" min="50" max="1000" step="50" value="300"/>
+    </div>
+    <div class="flex items-center gap-2 pt-2 border-t border-[color:var(--line)]">
+      <a href="/docs" target="_blank" class="btn btn-ghost flex-1 justify-center">Abrir Swagger /docs</a>
+      <button id="setReset" class="btn flex-1 justify-center" style="border-color: rgba(255,56,96,.35); color:#FFB0C9;">Reiniciar sensor</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== PROFILE DROPDOWN =================== -->
+<div id="profileMenu" class="hidden absolute right-6 top-[64px] z-[55] glass p-1 w-[260px]">
+  <div class="px-3 py-3 border-b border-[color:var(--line)] flex items-center gap-3">
+    <div class="w-9 h-9 rounded-full flex items-center justify-center font-mono text-[12px] font-semibold" style="background: linear-gradient(135deg,#1d2a44,#0e1626); border:1px solid var(--line-hi);">IS</div>
+    <div class="leading-tight">
+      <div class="text-[13px] font-medium">Isaac Silva</div>
+      <div class="text-[10px] font-mono text-[color:var(--text-mute)]">SecOps · Admin</div>
+    </div>
+  </div>
+  <div class="py-1 text-[12px]">
+    <div id="pmSensor" class="px-3 py-2 text-[11px] font-mono text-[color:var(--text-mute)]">cargando…</div>
+    <div class="divider my-1"></div>
+    <a href="/docs" target="_blank" class="block px-3 py-2 hover:bg-[rgba(148,163,184,.06)] rounded">📡 API Swagger</a>
+    <button id="pmReset" class="block w-full text-left px-3 py-2 hover:bg-[rgba(255,56,96,.08)] rounded text-[#FFB0C9]">↻ Reiniciar sensor</button>
+    <button id="pmCopy" class="block w-full text-left px-3 py-2 hover:bg-[rgba(148,163,184,.06)] rounded">📋 Copiar URL dashboard</button>
+  </div>
+</div>
+
+<script>
+/* =====================================================
+   SDAI — Real-Time Production Engine + API Integration
+   ===================================================== */
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+
+const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
+let DEMO_MODE = false;
+
+const STATE = {
+  config: { port: 20, brute: 8, dos: 1200, rate: 450 },
+  blacklist: ['203.0.113.42', '45.155.205.231', '198.51.100.7'],
+  paused: false,
+  autoScroll: true,
+  filter: 'all',
+  packets: [],          // ring buffer
+  packetIndex: 0,
+  selected: null,
+  alerts: [],
+  startedAt: Date.now() - (2*3600*1000 + 45*60*1000 + 12*1000),
+  stats: { TCP:0, UDP:0, ICMP:0, DNS:0, ARP:0, total:0 },
+  ppsHistory: [],
+};
+
+/* -------- Packet generator (Fallback for Demo Mode) -------- */
+const SRC_IPS = ['192.168.1.10','192.168.1.45','192.168.1.108','10.0.0.12','10.0.0.55','172.16.4.21','192.168.1.23'];
+const EXT_IPS = ['203.0.113.42','45.155.205.231','198.51.100.7','142.250.190.78','13.107.42.14','151.101.1.140','8.8.8.8'];
+const PROTOS = [
+  { name:'TCP',  w: 60 },
+  { name:'UDP',  w: 20 },
+  { name:'DNS',  w: 10 },
+  { name:'ICMP', w: 5  },
+  { name:'ARP',  w: 5  },
+];
+function weightedProto(){
+  const total = PROTOS.reduce((s,p)=>s+p.w,0);
+  let r = Math.random() * total;
+  for(const p of PROTOS){ r -= p.w; if(r<0) return p.name; }
+  return 'TCP';
+}
+function rand(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function ipPick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function makePacket(){
+  STATE.packetIndex++;
+  const proto = weightedProto();
+  const inbound = Math.random() < .55;
+  const biasSrc = Math.random() < .22 ? '192.168.1.45' : ipPick(SRC_IPS);
+  const src = inbound ? ipPick(EXT_IPS) : biasSrc;
+  const dst = inbound ? biasSrc : ipPick(EXT_IPS);
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  const ms = String(now.getMilliseconds()).padStart(3,'0');
+  const sport = proto==='ICMP' || proto==='ARP' ? null : rand(1024,65535);
+  const dport = proto==='ICMP' || proto==='ARP' ? null :
+                proto==='DNS' ? 53 :
+                Math.random() < .5 ? [80,443,22,3306,8080,21,25][rand(0,6)] : rand(1024,65535);
+  const size = proto==='ICMP' ? rand(64,128) : proto==='DNS' ? rand(72,180) : rand(54,1500);
+  const flags = proto==='TCP' ? [['SYN'],['ACK'],['SYN','ACK'],['PSH','ACK'],['FIN','ACK'],['RST']][rand(0,5)] : null;
+
+  return {
+    idx: STATE.packetIndex,
+    time: `${hh}:${mm}:${ss}`,
+    timeMs: ms,
+    src, dst, sport, dport, proto, size, flags,
+    ttl: rand(48,128),
+    isBlacklisted: STATE.blacklist.includes(src),
+    raw_data: null
+  };
+}
+
+/* -------- Render packet row -------- */
+const pktScroll = $('#pktScroll');
+function renderPacketRow(p, animate=true){
+  const row = document.createElement('div');
+  row.className = `pkt-row grid grid-cols-[44px_92px_1fr_1fr_70px_70px_28px] gap-3 items-center px-5 py-1.5 cursor-pointer border-b border-[color:var(--line)] ${animate?'pkt-row-new':''}`;
+  row.dataset.idx = p.idx;
+  row.dataset.proto = p.proto;
+  const protoClass = ({TCP:'pill-tcp', UDP:'pill-udp', ICMP:'pill-icmp', DNS:'pill-dns', ARP:'pill-arp'})[p.proto] || 'pill-tcp';
+  const srcWithPort = p.sport ? `${p.src}<span class="text-[color:var(--text-mute)]">:${p.sport}</span>` : p.src;
+  const dstWithPort = p.dport ? `${p.dst}<span class="text-[color:var(--text-mute)]">:${p.dport}</span>` : p.dst;
+  const blMark = p.isBlacklisted ? `<span class="ml-1" title="IP en lista negra" style="color:var(--crit)">●</span>` : '';
+  row.innerHTML = `
+    <div class="text-[color:var(--text-mute)] tabular-nums">${String(p.idx).padStart(5,'0')}</div>
+    <div class="tabular-nums">${p.time}<span class="text-[color:var(--text-mute)]">.${p.timeMs}</span></div>
+    <div class="truncate">${srcWithPort}${blMark}</div>
+    <div class="truncate">${dstWithPort}</div>
+    <div><span class="pill ${protoClass}">${p.proto}</span></div>
+    <div class="text-right tabular-nums">${p.size}</div>
+    <div class="text-[color:var(--text-mute)]">›</div>
+  `;
+  row.addEventListener('click', () => openDrawer(p, row));
+  pktScroll.appendChild(row);
+
+  // Update local counter stats if in demo mode
+  if (DEMO_MODE) {
+    if(STATE.stats[p.proto] !== undefined) STATE.stats[p.proto]++;
+    STATE.stats.total++;
+    updatePacketStats();
+  }
+
+  // Trim buffer to 300
+  while (pktScroll.children.length > 300) {
+    pktScroll.removeChild(pktScroll.firstChild);
+  }
+
+  if (STATE.autoScroll) {
+    pktScroll.scrollTop = pktScroll.scrollHeight;
+  }
+  applyFilter();
+}
+function updatePacketStats(){
+  $('#statTotal').textContent = STATE.stats.total.toLocaleString();
+  $('#statTcp').textContent  = STATE.stats.TCP;
+  $('#statUdp').textContent  = STATE.stats.UDP;
+  $('#statIcmp').textContent = STATE.stats.ICMP;
+  $('#statDns').textContent  = STATE.stats.DNS;
+  $('#statBuffer').textContent = pktScroll.children.length;
+}
+
+/* -------- Filtering -------- */
+function applyFilter(){
+  const f = STATE.filter;
+  $$('.pkt-row', pktScroll).forEach(r => {
+    r.style.display = (f==='all' || r.dataset.proto === f) ? '' : 'none';
+  });
+}
+$$('#protoFilters .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    $$('#protoFilters .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    STATE.filter = t.dataset.filter;
+    applyFilter();
+  });
+});
+
+/* -------- Pause / autoscroll -------- */
+$('#pauseBtn').addEventListener('click', () => {
+  STATE.paused = !STATE.paused;
+  $('#pauseLabel').textContent = STATE.paused ? 'Reanudar' : 'Pausa';
+  $('#pauseBtn').classList.toggle('btn-primary', STATE.paused);
+});
+$('#autoScrollBtn').addEventListener('click', () => {
+  STATE.autoScroll = !STATE.autoScroll;
+  $('#autoScrollBtn').classList.toggle('btn-primary', STATE.autoScroll);
+});
+$('#autoScrollBtn').classList.toggle('btn-primary', STATE.autoScroll);
+
+/* -------- Streaming loop (Demo Mode Fallback) -------- */
+let streamTimer = null;
+function startStream(){
+  if (streamTimer) clearTimeout(streamTimer);
+  const tick = () => {
+    if (!STATE.paused) {
+      const burst = STATE.config.rate < 200 ? rand(2,4) : STATE.config.rate < 500 ? rand(1,2) : 1;
+      for (let i=0;i<burst;i++){
+        const p = makePacket();
+        STATE.packets.push(p);
+        renderPacketRow(p);
+      }
+    }
+    streamTimer = setTimeout(tick, STATE.config.rate);
+  };
+  tick();
+}
+
+/* -------- Drawer -------- */
+const drawer = $('#drawer'), drawerBackdrop = $('#drawerBackdrop');
+function syntaxJSON(obj, indent=0){
+  const pad = '  '.repeat(indent);
+  const padIn = '  '.repeat(indent+1);
+  if (obj === null) return `<span class="j-null">null</span>`;
+  if (typeof obj === 'boolean') return `<span class="j-bool">${obj}</span>`;
+  if (typeof obj === 'number') return `<span class="j-num">${obj}</span>`;
+  if (typeof obj === 'string') return `<span class="j-str">"${obj.replace(/</g,'&lt;')}"</span>`;
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return `<span class="j-punct">[]</span>`;
+    return `<span class="j-punct">[</span>\n` +
+      obj.map(v => padIn + syntaxJSON(v, indent+1)).join(`<span class="j-punct">,</span>\n`) +
+      `\n${pad}<span class="j-punct">]</span>`;
+  }
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return `<span class="j-punct">{}</span>`;
+  return `<span class="j-punct">{</span>\n` +
+    keys.map(k => `${padIn}<span class="j-key">"${k}"</span><span class="j-punct">:</span> ${syntaxJSON(obj[k], indent+1)}`).join(`<span class="j-punct">,</span>\n`) +
+    `\n${pad}<span class="j-punct">}</span>`;
+}
+function openDrawer(p, row){
+  $$('.pkt-row.selected', pktScroll).forEach(r => r.classList.remove('selected'));
+  if (row) row.classList.add('selected');
+  STATE.selected = p;
+  
+  // Use real raw packet decoded layers if they exist (provided by backend)
+  const decoded = p.raw_data || {
+    frame: { number: p.idx, captured_at: `2026-05-20T${p.time}.${p.timeMs}Z`, length_bytes: p.size, interface: "eth0" },
+    ethernet: { src_mac: "b8:27:eb:11:22:33", dst_mac: "00:1c:42:aa:bb:cc", ethertype: "0x0800 (IPv4)" },
+    ipv4: { version: 4, ttl: p.ttl || 64, src: p.src, dst: p.dst, protocol: p.proto, header_length: 20, total_length: p.size },
+    [p.proto.toLowerCase()]: p.proto === 'TCP'
+      ? { src_port: p.sport, dst_port: p.dport, flags: p.flags, seq: 1234567, ack: 7654321, window: 64240 }
+      : p.proto === 'UDP'
+      ? { src_port: p.sport, dst_port: p.dport, length: p.size - 20 }
+      : p.proto === 'DNS'
+      ? { src_port: p.sport, dst_port: 53, query: 'api.pyme-acme.com', type: 'A', class: 'IN' }
+      : { type: 8, code: 0, description: 'Echo request' },
+    sdai: {
+      verdict: p.isBlacklisted ? 'BLACKLISTED_SOURCE' : 'CLEAN',
+      score: p.isBlacklisted ? 96 : 4,
+      tags: p.isBlacklisted ? ['blacklist'] : ['benign']
+    }
+  };
+
+  $('#drawerSub').textContent = `paquete #${String(p.idx).padStart(5,'0')} · ${p.time}.${p.timeMs}`;
+  $('#drawerSrc').textContent = p.sport ? `${p.src}:${p.sport}` : p.src;
+  $('#drawerDst').textContent = p.dport ? `${p.dst}:${p.dport}` : p.dst;
+  $('#drawerProto').textContent = p.proto + (p.flags ? ` [${p.flags.join(',')}]` : '');
+  $('#drawerBody').innerHTML = `<pre style="white-space:pre-wrap; word-break:break-word;">${syntaxJSON(decoded)}</pre>`;
+  drawer.classList.add('open');
+  drawerBackdrop.classList.add('open');
+}
+function closeDrawer(){
+  drawer.classList.remove('open');
+  drawerBackdrop.classList.remove('open');
+  $$('.pkt-row.selected', pktScroll).forEach(r => r.classList.remove('selected'));
+}
+$('#drawerClose').addEventListener('click', closeDrawer);
+$('#drawerBackdrop').addEventListener('click', closeDrawer);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+$('#drawerBlacklist').addEventListener('click', () => {
+  if (STATE.selected) {
+    addToBlacklist(STATE.selected.src);
+    showToast(`IP ${STATE.selected.src} agregada a la lista negra`);
+  }
+});
+$('#drawerFollow').addEventListener('click', () => {
+  showToast('Iniciando seguimiento de flujo TCP…');
+});
+
+/* -------- Alerts -------- */
+const SEED_ALERTS = [
+  {
+    id: 'a1', sev: 'high', kind: 'Escaneo de Puertos',
+    title: 'Escaneo de Puertos detectado',
+    src: '192.168.1.45',
+    msg: 'La IP <b class="text-white">192.168.1.45</b> accedió a <b class="text-white">25 puertos únicos</b> en 12 s. Patrón típico de reconocimiento previo.',
+    ts: 'hace 28s',
+    meta: '25 puertos · 12s · TCP SYN'
+  },
+  {
+    id: 'a2', sev: 'high', kind: 'IP en Lista Negra',
+    title: 'Tráfico desde IP en lista negra',
+    src: '45.155.205.231',
+    msg: 'Se observaron <b class="text-white">147 paquetes</b> entrantes desde <b class="text-white">45.155.205.231</b> (marcado en feed AbuseIPDB).',
+    ts: 'hace 1m 12s',
+    meta: '147 pkt · TCP/443 · AbuseIPDB'
+  },
+  {
+    id: 'a3', sev: 'med', kind: 'Fuerza Bruta',
+    title: 'Intento de Fuerza Bruta SSH',
+    src: '203.0.113.42',
+    msg: '<b class="text-white">11 intentos fallidos</b> de autenticación SSH en 45 s contra <b class="text-white">10.0.0.12:22</b>.',
+    ts: 'hace 3m 05s',
+    meta: '11 fails · SSH · usuario root'
+  },
+];
+
+const alertsList = $('#alertsList');
+function renderAlerts(){
+  alertsList.innerHTML = '';
+  STATE.alerts.forEach(a => alertsList.appendChild(buildAlertCard(a)));
+  updateAlertCounts();
+}
+function buildAlertCard(a){
+  const card = document.createElement('div');
+  const sevClass = { high:'sev-high', med:'sev-med', low:'sev-low' }[a.sev];
+  const sevLabel = { high:'ALTA', med:'MEDIA', low:'BAJA' }[a.sev];
+  const sevColor = { high:'var(--crit)', med:'var(--warn)', low:'var(--info)' }[a.sev];
+  card.className = `${sevClass} rounded-md p-3.5`;
+  card.dataset.id = a.id;
+  card.dataset.sev = a.sev;
+  card.innerHTML = `
+    <div class="flex items-start gap-3">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-mono font-semibold uppercase tracking-[0.16em]" style="color:${sevColor}">${sevLabel}</span>
+          <span class="text-[10px] font-mono text-[color:var(--text-mute)]">· ${a.kind}</span>
+          <span class="text-[10px] font-mono text-[color:var(--text-mute)]">· ${a.ts}</span>
+        </div>
+        <div class="font-display text-[14px] font-semibold mt-1 leading-tight">${a.title}</div>
+        <div class="text-[12px] text-[color:var(--text-dim)] mt-1 leading-relaxed">${a.msg}</div>
+        <div class="flex items-center gap-3 mt-2.5 text-[10px] font-mono text-[color:var(--text-mute)]">
+          <span class="px-1.5 py-0.5 rounded border border-[color:var(--line-hi)]">SRC ${a.src}</span>
+          <span>${a.meta}</span>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3 flex items-center gap-2">
+      <button class="btn btn-ghost flex-1 resolveBtn">
+        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>
+        Marcar como resuelta
+      </button>
+      <button class="btn btn-ghost investigateBtn">
+        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Investigar
+      </button>
+      <button class="btn btn-ghost blockBtn" title="Bloquear origen">
+        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="m5 5 14 14"/></svg>
+      </button>
+    </div>
+  `;
+  card.querySelector('.resolveBtn').addEventListener('click', () => {
+    if (DEMO_MODE) {
+      card.classList.add('resolving');
+      setTimeout(() => {
+        STATE.alerts = STATE.alerts.filter(x => x.id !== a.id);
+        card.remove();
+        updateAlertCounts();
+        maybeAddRandomAlert(true);
+      }, 600);
+    } else {
+      resolveAlertOnBackend(a.id, card);
+    }
+  });
+  card.querySelector('.investigateBtn').addEventListener('click', () => {
+    showToast(`Abriendo investigación para ${a.src}…`);
+  });
+  card.querySelector('.blockBtn').addEventListener('click', () => {
+    addToBlacklist(a.src);
+    showToast(`Bloqueando IP ${a.src} en kernel...`);
+  });
+  return card;
+}
+function updateAlertCounts(){
+  const h = STATE.alerts.filter(a=>a.sev==='high').length;
+  const m = STATE.alerts.filter(a=>a.sev==='med').length;
+  const l = STATE.alerts.filter(a=>a.sev==='low').length;
+  $('#ctHigh').textContent = h;
+  $('#ctMed').textContent  = m;
+  $('#ctLow').textContent  = l;
+  $('#kpiCritical').textContent = h;
+  updateShield();
+}
+
+function updateShield(){
+  const h = STATE.alerts.filter(a=>a.sev==='high').length;
+  const m = STATE.alerts.filter(a=>a.sev==='med').length;
+  const halo = $('#shieldHalo'), icon = $('#shieldIcon'), label = $('#shieldLabel');
+  halo.classList.remove('shield-glow-ok','shield-glow-warn','shield-glow-crit');
+  if (h > 0) {
+    halo.classList.add('shield-glow-crit');
+    icon.style.color = 'var(--crit)';
+    label.style.color = 'var(--crit)';
+    label.textContent = 'AMENAZA';
+  } else if (m > 0) {
+    halo.classList.add('shield-glow-warn');
+    icon.style.color = 'var(--warn)';
+    label.style.color = 'var(--warn)';
+    label.textContent = 'ADVERTENCIA';
+  } else {
+    halo.classList.add('shield-glow-ok');
+    icon.style.color = 'var(--ok)';
+    label.style.color = 'var(--ok)';
+    label.textContent = 'SEGURA';
+  }
+}
+
+/* -------- Fallback random alerts for Demo Mode -------- */
+const RANDOM_ALERT_POOL = [
+  () => ({
+    id: 'a' + Math.random().toString(36).slice(2,7), sev: 'med', kind: 'Fuerza Bruta',
+    title: 'Intento de Fuerza Bruta detectado', src: ipPick(EXT_IPS),
+    msg: `Se detectaron <b class="text-white">${rand(9,18)} intentos fallidos</b> de autenticación en una ventana de 60 s.`,
+    ts: 'hace 4s', meta: 'SSH · port 22'
+  }),
+  () => ({
+    id: 'a' + Math.random().toString(36).slice(2,7), sev: 'high', kind: 'Escaneo de Puertos',
+    title: 'Reconocimiento de puertos en curso', src: ipPick(SRC_IPS),
+    msg: `Patrón de escaneo: <b class="text-white">${rand(20,40)} puertos</b> en menos de 20 s desde un único host.`,
+    ts: 'hace 6s', meta: 'TCP SYN · half-open'
+  }),
+];
+function maybeAddRandomAlert(force=false){
+  if (!DEMO_MODE) return;
+  if (!force && Math.random() > 0.18) return;
+  if (STATE.alerts.length >= 6) return;
+  const a = RANDOM_ALERT_POOL[rand(0,RANDOM_ALERT_POOL.length-1)]();
+  STATE.alerts.unshift(a);
+  const card = buildAlertCard(a);
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(-6px)';
+  alertsList.prepend(card);
+  requestAnimationFrame(() => {
+    card.style.transition = 'opacity .4s ease, transform .4s ease';
+    card.style.opacity = '1';
+    card.style.transform = 'none';
+  });
+  updateAlertCounts();
+}
+
+/* -------- Blacklist tags -------- */
+const blTags = $('#blTags'), blInput = $('#blInput'), blAdd = $('#blAdd');
+function renderBlacklist(){
+  blTags.innerHTML = '';
+  STATE.blacklist.forEach(ip => {
+    const t = document.createElement('span');
+    t.className = 'tag font-mono';
+    t.innerHTML = `${ip}<span class="x" title="Quitar">×</span>`;
+    t.querySelector('.x').addEventListener('click', () => {
+      STATE.blacklist = STATE.blacklist.filter(x => x !== ip);
+      renderBlacklist();
+      markDirty();
+      if (!DEMO_MODE) {
+        saveConfig();
+      }
+    });
+    blTags.appendChild(t);
+  });
+  $('#blCount').textContent = STATE.blacklist.length;
+}
+function addToBlacklist(ip){
+  if (!ip) return;
+  if (STATE.blacklist.includes(ip)) return;
+  STATE.blacklist.push(ip);
+  renderBlacklist();
+  markDirty();
+  if (!DEMO_MODE) {
+    saveConfig();
+  }
+}
+blAdd.addEventListener('click', () => {
+  const v = blInput.value.trim();
+  if (v) { addToBlacklist(v); blInput.value=''; }
+});
+blInput.addEventListener('keydown', e => { if(e.key==='Enter'){ blAdd.click(); }});
+
+/* -------- Sliders -------- */
+function bindSlider(id, key, label, fmt){
+  const s = $('#'+id), out = $('#'+label);
+  function paint(){
+    const v = +s.value;
+    const min = +s.min, max = +s.max;
+    const p = ((v - min) / (max - min)) * 100;
+    s.style.setProperty('--p', p + '%');
+    out.textContent = fmt ? fmt(v) : v;
+    STATE.config[key] = v;
+    markDirty();
+    updateConfigPreview();
+  }
+  s.addEventListener('input', paint);
+  paint();
+}
+function updateConfigPreview(){
+  const c = STATE.config;
+  $('#cfgPreview').textContent = `{ port:${c.port}, brute:${c.brute}, dos:${c.dos}, rate:${c.rate}ms, bl:${STATE.blacklist.length} }`;
+}
+let dirty = false;
+function markDirty(){
+  dirty = true;
+  $('#dirtyDot').style.background = 'var(--warn)';
+  $('#dirtyLabel').textContent = 'cambios pendientes';
+  $('#dirtyLabel').style.color = 'var(--warn)';
+}
+function markClean(){
+  dirty = false;
+  $('#dirtyDot').style.background = 'var(--ok)';
+  $('#dirtyDot').style.boxShadow = '0 0 8px var(--ok)';
+  $('#dirtyLabel').textContent = 'sincronizado';
+  $('#dirtyLabel').style.color = '';
+}
+bindSlider('sPort','port','vPort');
+bindSlider('sBrute','brute','vBrute');
+bindSlider('sDos','dos','vDos');
+bindSlider('sRate','rate','vRate', v => v);
+
+$('#cfgReset').addEventListener('click', () => {
+  $('#sPort').value=20; $('#sBrute').value=8; $('#sDos').value=1200; $('#sRate').value=450;
+  ['sPort','sBrute','sDos','sRate'].forEach(id => $('#'+id).dispatchEvent(new Event('input')));
+});
+$('#cfgApply').addEventListener('click', () => {
+  if (DEMO_MODE) {
+    markClean();
+    startStream();
+    showToast('Configuración simulada aplicada en caliente');
+  } else {
+    saveConfig();
+  }
+});
+
+/* -------- Toast -------- */
+let toastTimer;
+function showToast(msg){
+  $('#toastMsg').textContent = msg;
+  const t = $('#toast');
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 2400);
+}
+
+/* -------- Uptime -------- */
+function updateUptime(){
+  const ms = Date.now() - STATE.startedAt;
+  const h = Math.floor(ms/3600000);
+  const m = Math.floor((ms%3600000)/60000);
+  const s = Math.floor((ms%60000)/1000);
+  $('#kpiUptime').textContent = `${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+}
+setInterval(updateUptime, 1000);
+
+/* -------- PPS + sparkline + heartbeat -------- */
+let lastTotal = 0;
+function updatePPS(){
+  if (DEMO_MODE) {
+    const delta = STATE.stats.total - lastTotal;
+    lastTotal = STATE.stats.total;
+    const pps = Math.max(0, delta * (1000 / 1000));
+    const display = Math.round(280 + Math.random()*80 + pps*40);
+    $('#kpiPps').textContent = display;
+    STATE.ppsHistory.push(display);
+  }
+  // Real mode: PPS value + history populated by loadPps() — render only sparkline + delta below.
+
+  if (STATE.ppsHistory.length > 30) STATE.ppsHistory.shift();
+  const h = STATE.ppsHistory;
+  if (h.length > 1) {
+    const min = Math.min(...h), max = Math.max(...h);
+    const range = Math.max(1, max - min);
+    const pts = h.map((v,i) => {
+      const x = (i/(h.length-1)) * 80;
+      const y = 20 - ((v - min)/range) * 16;
+      return `${i===0?'M':'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(' ');
+    $('#sparkPath').setAttribute('d', pts);
+  }
+  if (STATE.ppsHistory.length > 5) {
+    const prev = STATE.ppsHistory[STATE.ppsHistory.length-6];
+    const curr = STATE.ppsHistory[STATE.ppsHistory.length-1];
+    const pct = ((curr - prev) / Math.max(1,prev)) * 100;
+    const el = $('#kpiPpsDelta');
+    el.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+    el.style.color = pct >= 0 ? 'var(--ok)' : 'var(--crit)';
+  }
+}
+setInterval(updatePPS, 1000);
+
+/* -------- Heartbeat bars -------- */
+function initHeartbeat(){
+  const hb = $('#heartbeat');
+  hb.innerHTML = '';
+  for(let i=0;i<28;i++){
+    const b = document.createElement('div');
+    b.className = 'bar';
+    b.style.height = (4 + Math.random()*22) + 'px';
+    hb.appendChild(b);
+  }
+}
+function pulseHeartbeat(){
+  const hb = $('#heartbeat');
+  hb.firstChild?.remove();
+  const b = document.createElement('div');
+  b.className = 'bar';
+  const isAlert = STATE.alerts.some(a => a.sev === 'high');
+  if (isAlert && Math.random() < .35) b.classList.add('alert');
+  b.style.height = (4 + Math.random()*24) + 'px';
+  hb.appendChild(b);
+}
+setInterval(pulseHeartbeat, 350);
+
+/* -------- Topology graph -------- */
+function renderTopology(topSources){
+  const svg = $('#topoSvg');
+  if (!svg) return;
+  svg.innerHTML = '';
+  const cx = 260, cy = 140;
+
+  const defaultSources = [
+    { ip: '192.168.1.10', count: 120 },
+    { ip: '192.168.1.45', count: 80 },
+    { ip: '10.0.0.12', count: 45 },
+    { ip: '10.0.0.55', count: 32 },
+    { ip: '172.16.4.21', count: 18 },
+    { ip: '192.168.1.23', count: 12 }
+  ];
+
+  const activeSources = (topSources && topSources.length > 0) ? topSources : defaultSources;
+  
+  const hosts = [
+    { id: 'gw', label: 'FW / SDAI', ip: 'gateway', x: cx, y: cy, status: 'core', size: 30 }
+  ];
+
+  const angles = [-150, -100, -50, 0, 50, 100, 150, -180];
+  activeSources.forEach((src, index) => {
+    if (index >= angles.length) return;
+    
+    let status = 'ok';
+    const alertsForIp = STATE.alerts.filter(a => a.src === src.ip);
+    if (alertsForIp.some(a => a.sev === 'high')) {
+      status = 'crit';
+    } else if (alertsForIp.some(a => a.sev === 'med')) {
+      status = 'warn';
+    }
+
+    let label = `HOST-${index+1}`;
+    if (src.ip.startsWith('192.168.1.10')) label = 'PC-SEC';
+    else if (src.ip.startsWith('10.0.0.12')) label = 'SRV-DB';
+    else if (src.ip.startsWith('10.0.0.55')) label = 'SRV-WEB';
+    else if (src.ip.startsWith('172.16.')) label = 'NAS-BACKUP';
+
+    hosts.push({
+      id: `h${index+1}`,
+      label: label,
+      ip: src.ip,
+      status: status,
+      angle: angles[index],
+      count: src.count
+    });
+  });
+
+  const radius = 110;
+  hosts.forEach(h => {
+    if (h.id !== 'gw') {
+      const rad = (h.angle * Math.PI)/180;
+      h.x = cx + Math.cos(rad) * radius;
+      h.y = cy + Math.sin(rad) * radius * 0.85;
+    }
+  });
+
+  svg.insertAdjacentHTML('beforeend', `
+    <defs>
+      <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#4FB8FF" stop-opacity=".8"/>
+        <stop offset="100%" stop-color="#4FB8FF" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="2.5" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+  `);
+
+  [60, 100, 140].forEach(r => {
+    svg.insertAdjacentHTML('beforeend',
+      `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(148,163,184,.10)" stroke-dasharray="2 4"/>`);
+  });
+
+  hosts.filter(h => h.id !== 'gw').forEach(h => {
+    const color = h.status === 'crit' ? '#FF3860' : h.status === 'warn' ? '#FFB020' : 'rgba(79,184,255,.35)';
+    const sw = h.status === 'crit' ? 1.6 : h.status === 'warn' ? 1.2 : 0.8;
+    const dash = h.status === 'crit' ? '4 3' : '';
+    svg.insertAdjacentHTML('beforeend',
+      `<line x1="${cx}" y1="${cy}" x2="${h.x}" y2="${h.y}" stroke="${color}" stroke-width="${sw}" stroke-dasharray="${dash}" opacity=".75"/>`);
+    if (h.status === 'crit') {
+      svg.insertAdjacentHTML('beforeend', `
+        <circle r="2.5" fill="#FF3860" filter="url(#glow)">
+          <animateMotion dur="1.8s" repeatCount="indefinite"
+            path="M ${h.x} ${h.y} L ${cx} ${cy}"/>
+        </circle>
+      `);
+    }
+  });
+
+  svg.insertAdjacentHTML('beforeend', `
+    <circle cx="${cx}" cy="${cy}" r="48" fill="url(#coreGrad)"/>
+    <circle cx="${cx}" cy="${cy}" r="22" fill="#0B0F19" stroke="rgba(79,184,255,.6)" stroke-width="1.2"/>
+    <text x="${cx}" y="${cy-2}"  text-anchor="middle" font-family="Outfit,Inter,sans-serif" font-size="10" font-weight="700" fill="#E5E7EB">SDAI</text>
+    <text x="${cx}" y="${cy+10}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#4FB8FF">CORE</text>
+  `);
+
+  hosts.filter(h => h.id !== 'gw').forEach(h => {
+    const color = h.status === 'crit' ? '#FF3860' : h.status === 'warn' ? '#FFB020' : '#22FF99';
+    const r = h.status === 'crit' ? 9 : 7;
+    svg.insertAdjacentHTML('beforeend', `
+      <g>
+        ${h.status === 'crit' ? `<circle cx="${h.x}" cy="${h.y}" r="${r+5}" fill="${color}" opacity=".15">
+            <animate attributeName="r" values="${r+3};${r+10};${r+3}" dur="1.6s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values=".25;0;.25" dur="1.6s" repeatCount="indefinite"/>
+          </circle>` : ''}
+        <circle cx="${h.x}" cy="${h.y}" r="${r}" fill="#0B0F19" stroke="${color}" stroke-width="1.4" filter="url(#glow)"/>
+        <circle cx="${h.x}" cy="${h.y}" r="${r-3}" fill="${color}" opacity=".8"/>
+        <text x="${h.x}" y="${h.y + 22}" text-anchor="middle" font-family="Outfit,Inter,sans-serif" font-size="10" font-weight="600" fill="#E5E7EB">${h.label}</text>
+        <text x="${h.x}" y="${h.y + 33}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#64748B">${h.ip}</text>
+      </g>
+    `);
+  });
+}
+
+/* -------- Geo threat map — Globe.gl (Three.js) Kaspersky-style globe -------- */
+const LOCAL_SENSOR = { lat: 8.6315, lon: -70.2079, label: 'SDAI · Barinas, VE' };
+const DEMO_THREATS = [
+  { lat: 52.6171, lon: 13.1207,  sev: 'crit', ip: '185.220.101.5',  loc: 'Brandenburg, DE' },
+  { lat: 59.9417, lon: 30.3096,  sev: 'crit', ip: '45.155.205.231', loc: 'San Petersburgo, RU' },
+  { lat: 55.7487, lon: 37.6187,  sev: 'med',  ip: '5.252.176.36',   loc: 'Moscú, RU' },
+  { lat: 51.9968, lon: 4.2057,   sev: 'med',  ip: '89.38.97.196',   loc: 'Naaldwijk, NL' },
+  { lat: 22.2842, lon: 114.1759, sev: 'low',  ip: '193.107.216.31', loc: 'Hong Kong' },
+  { lat: 40.7964, lon: -74.0203, sev: 'low',  ip: '167.99.7.55',    loc: 'NY, US' },
+  { lat: 59.3287, lon: 18.0717,  sev: 'low',  ip: '185.130.44.108', loc: 'Estocolmo, SE' },
+];
+
+const SEV_COLOR = { crit: '#FF3860', warn: '#FFB020', info: '#4FB8FF', ok: '#22FF99' };
+
+function _sevClass(sev){
+  return sev === 'high' || sev === 'crit' || sev === 'alta' ? 'crit'
+       : sev === 'med' || sev === 'media' ? 'warn'
+       : 'info';
+}
+
+let _globe = null;
+let _globeTooltip = null;
+let _globeResizeBound = false;
+
+function _initGlobe(){
+  if (_globe) return _globe;
+  const container = document.getElementById('geoMap');
+  if (!container || typeof Globe === 'undefined') return null;
+
+  _globe = Globe()
+    .backgroundColor('rgba(0,0,0,0)')
+    .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+    .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+    .showAtmosphere(true)
+    .atmosphereColor('#4FB8FF')
+    .atmosphereAltitude(0.18)
+    .pointAltitude(0.01)
+    .pointRadius('size')
+    .pointColor('color')
+    .pointLabel(d => '')
+    .arcStartLat(d => d.startLat)
+    .arcStartLng(d => d.startLng)
+    .arcEndLat(d => d.endLat)
+    .arcEndLng(d => d.endLng)
+    .arcColor('color')
+    .arcAltitudeAutoScale(0.4)
+    .arcStroke(0.4)
+    .arcDashLength(0.35)
+    .arcDashGap(1.5)
+    .arcDashAnimateTime(d => d.animTime || 2200)
+    .ringsData([])
+    .ringColor('color')
+    .ringMaxRadius(4)
+    .ringPropagationSpeed(2)
+    .ringRepeatPeriod(1400)
+    .onPointHover(p => _showGlobeTooltip(p))
+    .onArcHover(a => _showGlobeTooltip(a && { lat: a.endLat, lng: a.endLng, ip: a.ip, loc: a.loc, sev: a.severityClass, kind: a.kind, desc: a.desc, isSensor: false }))
+    (container);
+
+  // Tune renderer/controls
+  const controls = _globe.controls();
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.6;
+  controls.enableZoom = true;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.12;
+
+  _globe.pointOfView({ lat: LOCAL_SENSOR.lat, lng: LOCAL_SENSOR.lon, altitude: 2.4 }, 0);
+
+  // Tooltip overlay
+  _globeTooltip = document.createElement('div');
+  _globeTooltip.className = 'globe-tooltip';
+  _globeTooltip.style.opacity = '0';
+  container.appendChild(_globeTooltip);
+
+  container.addEventListener('mousemove', e => {
+    const rect = container.getBoundingClientRect();
+    _globeTooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+    _globeTooltip.style.top  = (e.clientY - rect.top  + 12) + 'px';
+  });
+
+  // Initial sizing + on resize
+  const fit = () => {
+    _globe.width(container.clientWidth);
+    _globe.height(container.clientHeight);
+  };
+  fit();
+  if (!_globeResizeBound) {
+    window.addEventListener('resize', fit);
+    _globeResizeBound = true;
+  }
+
+  return _globe;
+}
+
+function _showGlobeTooltip(target){
+  if (!_globeTooltip) return;
+  if (!target) { _globeTooltip.style.opacity = '0'; return; }
+  const sevClass = target.sev || target.severityClass || 'info';
+  const sevColor = SEV_COLOR[sevClass] || '#4FB8FF';
+  _globeTooltip.innerHTML = target.isSensor
+    ? `<span class="ok">● ${LOCAL_SENSOR.label}</span><div>Sensor activo</div>`
+    : `<span class="${sevClass}">●</span> <span class="ip">${target.ip || '—'}</span>` +
+      `<div>${target.loc || '—'}</div>` +
+      (target.kind ? `<div style="color:${sevColor}">${target.kind}</div>` : '') +
+      (target.desc ? `<div style="color:#94A3B8">${target.desc}</div>` : '');
+  _globeTooltip.style.opacity = '1';
+}
+
+function renderGeoMap(){
+  const container = document.getElementById('geoMap');
+  if (!container) return;
+  if (typeof Globe === 'undefined') {
+    container.innerHTML = '<div class="text-[color:var(--text-mute)] text-center text-[12px] p-6">Globe.gl no disponible (sin internet)</div>';
+    return;
+  }
+  const globe = _initGlobe();
+  if (!globe) return;
+
+  const source = DEMO_MODE
+    ? DEMO_THREATS
+    : STATE.alerts
+        .filter(a => a.latitude != null && a.longitude != null)
+        .filter(a => !(Math.abs(a.latitude - LOCAL_SENSOR.lat) < 0.1 && Math.abs(a.longitude - LOCAL_SENSOR.lon) < 0.1))
+        .map(a => ({
+          lat: a.latitude, lng: a.longitude,
+          sev: _sevClass(a.sev),
+          ip: a.src || '—',
+          loc: `${a.city || '—'}, ${a.country || '—'}`,
+          kind: a.kind || a.threat_type || '',
+          desc: a.msg || a.description || '',
+        }));
+
+  // Dedupe by ~city tile
+  const seen = new Set();
+  const threats = [];
+  source.forEach(t => {
+    const key = `${(+t.lat).toFixed(2)}|${(+t.lng || +t.lon || 0).toFixed(2)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    threats.push({
+      lat: t.lat, lng: t.lng != null ? t.lng : t.lon,
+      sev: t.sev,
+      ip: t.ip, loc: t.loc, kind: t.kind, desc: t.desc,
+    });
+  });
+
+  // Points layer = sensor + attackers
+  const points = [
+    {
+      lat: LOCAL_SENSOR.lat, lng: LOCAL_SENSOR.lon,
+      color: SEV_COLOR.ok, size: 0.6, isSensor: true,
+    },
+    ...threats.map(t => ({
+      lat: t.lat, lng: t.lng,
+      color: SEV_COLOR[t.sev] || SEV_COLOR.info,
+      size: t.sev === 'crit' ? 0.55 : t.sev === 'warn' ? 0.45 : 0.35,
+      sev: t.sev,
+      ip: t.ip, loc: t.loc, kind: t.kind, desc: t.desc,
+    })),
+  ];
+
+  // Arcs animados attacker → sensor
+  const arcs = threats.map(t => ({
+    startLat: t.lat, startLng: t.lng,
+    endLat: LOCAL_SENSOR.lat, endLng: LOCAL_SENSOR.lon,
+    color: [SEV_COLOR[t.sev] || SEV_COLOR.info, SEV_COLOR.ok],
+    animTime: t.sev === 'crit' ? 1500 : t.sev === 'warn' ? 2200 : 3000,
+    severityClass: t.sev,
+    ip: t.ip, loc: t.loc, kind: t.kind, desc: t.desc,
+  }));
+
+  // Rings pulsantes en el sensor + atacantes críticos
+  const rings = [
+    { lat: LOCAL_SENSOR.lat, lng: LOCAL_SENSOR.lon, color: SEV_COLOR.ok },
+    ...threats
+      .filter(t => t.sev === 'crit')
+      .map(t => ({ lat: t.lat, lng: t.lng, color: SEV_COLOR.crit })),
+  ];
+
+  globe
+    .pointsData(points)
+    .arcsData(arcs)
+    .ringsData(rings);
+
+  $('#geoCount').textContent = `${threats.length} nodos`;
+}
+
+/* -------- Severity trend chart -------- */
+function renderTrend(series){
+  const svg = $('#trendSvg');
+  if (!svg) return;
+  const W = 320, H = 200, PAD = 8;
+  const N = (series && series.alta && series.alta.length) || 30;
+  let high, med, low;
+  if (series && Array.isArray(series.alta) && Array.isArray(series.media) && Array.isArray(series.baja)) {
+    high = series.alta.slice(0, N);
+    med  = series.media.slice(0, N);
+    low  = series.baja.slice(0, N);
+  } else {
+    high = []; med = []; low = [];
+    for (let i=0;i<N;i++){
+      high.push(rand(0, i > N-8 ? 5 : 3));
+      med.push(rand(1, 6));
+      low.push(rand(2, 8));
+    }
+  }
+  const totals = high.map((_,i) => high[i] + med[i] + low[i]);
+  const maxT = Math.max(...totals, 10);
+  const xOf = i => PAD + (i/(N-1))*(W - PAD*2);
+  const yOf = v => H - PAD - (v/maxT)*(H - PAD*2);
+
+  function pathFor(series, baseSeries){
+    let top = '', bot = '';
+    series.forEach((v,i) => {
+      const stacked = baseSeries[i] + v;
+      const x = xOf(i), y = yOf(stacked);
+      top += `${i===0?'M':'L'} ${x.toFixed(1)} ${y.toFixed(1)} `;
+    });
+    for (let i=N-1;i>=0;i--){
+      const x = xOf(i), y = yOf(baseSeries[i]);
+      bot += `L ${x.toFixed(1)} ${y.toFixed(1)} `;
+    }
+    return top + bot + 'Z';
+  }
+  const zero = new Array(N).fill(0);
+  const lowBase   = zero;
+  const medBase   = low;
+  const highBase  = low.map((v,i) => v + med[i]);
+
+  let grid = '';
+  for (let g=1; g<=3; g++){
+    const y = PAD + (g/4)*(H - PAD*2);
+    grid += `<line x1="${PAD}" x2="${W-PAD}" y1="${y}" y2="${y}" stroke="rgba(148,163,184,.08)" stroke-dasharray="2 3"/>`;
+  }
+  svg.innerHTML = `
+    ${grid}
+    <path d="${pathFor(low, lowBase)}"   fill="rgba(79,184,255,.35)" stroke="#4FB8FF" stroke-width="1"/>
+    <path d="${pathFor(med, medBase)}"   fill="rgba(255,176,32,.35)" stroke="#FFB020" stroke-width="1"/>
+    <path d="${pathFor(high,highBase)}"  fill="rgba(255,56,96,.40)"  stroke="#FF3860" stroke-width="1"/>
+    <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="rgba(148,163,184,.18)"/>
+  `;
+}
+
+/* -------- Real API Dynamic Integration Methods -------- */
+async function checkMode() {
+  try {
+    const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(1000) });
+    if (res.ok) {
+      DEMO_MODE = false;
+      console.log("SDAI: Servidor detectado en línea. Ejecutando en Modo Real.");
+    } else {
+      throw new Error();
+    }
+  } catch(err) {
+    DEMO_MODE = true;
+    console.warn("SDAI: Servidor fuera de línea. Corriendo en Modo Demo.");
+    showToast("Modo Demo Activo (Servidor desconectado)");
+    const liveDot = $('.live-dot');
+    const liveText = $('.live-dot + span');
+    if (liveDot && liveText) {
+      liveDot.style.background = 'var(--warn)';
+      liveDot.style.boxShadow = '0 0 10px var(--warn)';
+      liveText.textContent = 'DEMO · Simulando eth0';
+    }
+  }
+}
+
+async function loadConfig() {
+  try {
+    const res = await fetch(`${API_BASE}/config`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    data.forEach(item => {
+      if (item.key === 'port_scan_threshold') {
+        STATE.config.port = item.value?.ports_per_minute || 20;
+        $('#sPort').value = STATE.config.port;
+        $('#sPort').dispatchEvent(new Event('input'));
+      } else if (item.key === 'brute_force_threshold') {
+        STATE.config.brute = item.value?.failed_attempts || 8;
+        $('#sBrute').value = STATE.config.brute;
+        $('#sBrute').dispatchEvent(new Event('input'));
+      } else if (item.key === 'dos_threshold') {
+        STATE.config.dos = item.value?.packets_per_second || 1200;
+        $('#sDos').value = STATE.config.dos;
+        $('#sDos').dispatchEvent(new Event('input'));
+      } else if (item.key === 'blacklist_ips') {
+        STATE.blacklist = Array.isArray(item.value) ? item.value : [];
+        renderBlacklist();
+      }
+    });
+    markClean();
+    updateConfigPreview();
+  } catch(err) {
+    console.error("Error cargando configuración: ", err);
+  }
+}
+
+async function saveConfig() {
+  try {
+    const configsToSave = [
+      { key: 'port_scan_threshold', value: { ports_per_minute: STATE.config.port } },
+      { key: 'brute_force_threshold', value: { failed_attempts: STATE.config.brute, window_seconds: 60 } },
+      { key: 'dos_threshold', value: { packets_per_second: STATE.config.dos } },
+      { key: 'blacklist_ips', value: STATE.blacklist }
+    ];
+    for (const cfg of configsToSave) {
+      await fetch(`${API_BASE}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg)
+      });
+    }
+    markClean();
+    showToast("Configuración sincronizada con el servidor");
+  } catch(err) {
+    console.error("Error guardando config: ", err);
+    showToast("Error al sincronizar configuración");
+  }
+}
+
+async function loadAlerts() {
+  try {
+    const res = await fetch(`${API_BASE}/alerts?resolved=false`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const sevMap = { 'alta': 'high', 'media': 'med', 'baja': 'low' };
+    const kindMap = {
+      'port_scan': 'Escaneo de Puertos',
+      'brute_force': 'Fuerza Bruta',
+      'dos': 'Denegación de Servicio (DoS)',
+      'malicious_ip': 'IP en Lista Negra'
+    };
+
+    STATE.alerts = data.map(alert => {
+      const d = new Date(alert.created_at);
+      const minAgo = Math.floor((Date.now() - d.getTime()) / 60000);
+      const tsText = minAgo <= 0 ? 'Hace instantes' : `Hace ${minAgo}m`;
+
+      return {
+        id: alert.id,
+        sev: sevMap[alert.severity] || 'low',
+        kind: kindMap[alert.threat_type] || alert.threat_type,
+        title: alert.description || 'Alerta de Seguridad',
+        src: alert.events?.src_ip || 'IP Externa',
+        msg: alert.description,
+        ts: tsText,
+        meta: `Ubicación: ${alert.city || 'Desconocida'}, ${alert.country || 'Desconocido'}`,
+        latitude: alert.latitude,
+        longitude: alert.longitude,
+        country: alert.country,
+        city: alert.city
+      };
+    });
+    renderAlerts();
+    renderGeoMap();
+  } catch(err) {
+    console.error("Error al cargar alertas: ", err);
+  }
+}
+
+async function resolveAlertOnBackend(alertId, card) {
+  try {
+    const res = await fetch(`${API_BASE}/alerts/${alertId}/resolve`, {
+      method: 'PATCH'
+    });
+    if (!res.ok) throw new Error();
+    card.classList.add('resolving');
+    setTimeout(() => {
+      STATE.alerts = STATE.alerts.filter(x => x.id !== alertId);
+      card.remove();
+      updateAlertCounts();
+      renderGeoMap();
+    }, 600);
+  } catch(err) {
+    console.error("Error resolviendo alerta: ", err);
+    showToast("Error al resolver alerta en el servidor");
+  }
+}
+
+async function loadSummaryStats() {
+  try {
+    const res = await fetch(`${API_BASE}/stats/summary`);
+    if (!res.ok) throw new Error();
+    const summary = await res.json();
+
+    // KPI: unresolved critical count + total events counter
+    $('#kpiCritical').textContent = summary.unresolved_alerts;
+    $('#statTotal').textContent = (summary.total_events || 0).toLocaleString();
+
+    // Sensor boot time → uptime
+    if (typeof summary.uptime_seconds === 'number') {
+      STATE.startedAt = Date.now() - summary.uptime_seconds * 1000;
+    }
+
+    // IP más activa (top source 0)
+    if (summary.top_sources && summary.top_sources.length > 0) {
+      const active = summary.top_sources[0];
+      const activeIpEl = $('.glass.p-4.fade-up.d3 .mt-2.font-mono');
+      const activeIpSubEl = $('.glass.p-4.fade-up.d3 .mt-1.5.flex span');
+      if (activeIpEl && activeIpSubEl) {
+        activeIpEl.textContent = active.ip;
+        activeIpSubEl.textContent = `${active.count.toLocaleString()} paquetes capturados`;
+      }
+    }
+
+    // Breakdown debajo de Alertas Críticas: distribución por tipo
+    const distro = summary.threat_distribution || {};
+    const breakdownEl = $('.glass.p-4.fade-up.d2 .mt-1\\.5.text-\\[11px\\]') || $('.glass.p-4.fade-up.d2 .mt-1\\.5');
+    if (breakdownEl) {
+      const ps = distro.port_scan || 0;
+      const bf = distro.brute_force || 0;
+      const ds = distro.dos || 0;
+      const mi = distro.malicious_ip || 0;
+      breakdownEl.innerHTML =
+        `<span class="font-mono" style="color: var(--crit)">${ps}</span> Port Scan · ` +
+        `<span class="font-mono" style="color: var(--warn)">${bf}</span> Brute · ` +
+        `<span class="font-mono" style="color: var(--crit)">${ds}</span> DoS · ` +
+        `<span class="font-mono" style="color: var(--purple)">${mi}</span> Bl-IP`;
+    }
+
+    renderTopology(summary.top_sources);
+    renderGeoMap();
+  } catch(err) {
+    console.error("Error al cargar estadísticas: ", err);
+  }
+}
+
+async function loadPps() {
+  try {
+    const res = await fetch(`${API_BASE}/stats/pps`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    $('#kpiPps').textContent = data.current;
+    if (Array.isArray(data.history) && data.history.length > 0) {
+      STATE.ppsHistory = data.history.slice(-30);
+    }
+  } catch(err) {
+    console.error("Error al cargar PPS: ", err);
+  }
+}
+
+async function loadTrend() {
+  try {
+    const res = await fetch(`${API_BASE}/stats/trend?minutes=30&buckets=30`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    renderTrend(data.series);
+  } catch(err) {
+    console.error("Error al cargar tendencia: ", err);
+  }
+}
+
+let sseSource = null;
+function connectSSE() {
+  if (sseSource) sseSource.close();
+  const url = `${API_BASE}/live/stream`;
+  console.log("SDAI: Conectando SSE a ", url);
+  sseSource = new EventSource(url);
+
+  sseSource.onmessage = function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      if (STATE.paused) return;
+
+      const event = data.event;
+      const triggeredAlerts = data.alerts;
+
+      if (event) {
+        STATE.packetIndex++;
+        const d = new Date(event.timestamp || new Date());
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        const ss = String(d.getSeconds()).padStart(2, '0');
+        const ms = String(d.getMilliseconds()).padStart(3, '0');
+
+        const isBl = STATE.blacklist.includes(event.src_ip);
+        const proto = classifyProto(event);
+        const p = {
+          idx: event.id || STATE.packetIndex,
+          time: `${hh}:${mm}:${ss}`,
+          timeMs: ms,
+          src: event.src_ip,
+          dst: event.dst_ip,
+          sport: event.src_port,
+          dport: event.dst_port,
+          proto,
+          size: event.length || 60,
+          flags: event.flags ? [event.flags] : null,
+          ttl: event.raw_data?.ttl || 64,
+          isBlacklisted: isBl,
+          raw_data: event.raw_data || event
+        };
+
+        // Update real-mode counters (DEMO_MODE has its own path in renderPacketRow)
+        if (!DEMO_MODE) {
+          if (STATE.stats[proto] !== undefined) STATE.stats[proto]++;
+          STATE.stats.total++;
+        }
+
+        STATE.packets.push(p);
+        renderPacketRow(p);
+        if (!DEMO_MODE) updatePacketStats();
+      }
+
+      if (triggeredAlerts && triggeredAlerts.length > 0) {
+        triggeredAlerts.forEach(alert => {
+          const sevMap = { 'alta': 'high', 'media': 'med', 'baja': 'low' };
+          const kindMap = {
+            'port_scan': 'Escaneo de Puertos',
+            'brute_force': 'Fuerza Bruta',
+            'dos': 'Denegación de Servicio (DoS)',
+            'malicious_ip': 'IP en Lista Negra'
+          };
+          const mappedAlert = {
+            id: alert.id,
+            sev: sevMap[alert.severity] || 'low',
+            kind: kindMap[alert.threat_type] || alert.threat_type,
+            title: alert.description || 'Alerta de Seguridad',
+            src: alert.src_ip || alert.events?.src_ip || 'IP Externa',
+            msg: alert.description,
+            ts: 'En vivo',
+            meta: `Ubicación: ${alert.city || 'Desconocida'}, ${alert.country || 'Desconocido'}`,
+            latitude: alert.latitude,
+            longitude: alert.longitude,
+            country: alert.country,
+            city: alert.city
+          };
+
+          if (!STATE.alerts.some(a => a.id === mappedAlert.id)) {
+            STATE.alerts.unshift(mappedAlert);
+            const card = buildAlertCard(mappedAlert);
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(-6px)';
+            alertsList.prepend(card);
+            requestAnimationFrame(() => {
+              card.style.transition = 'opacity .4s ease, transform .4s ease';
+              card.style.opacity = '1';
+              card.style.transform = 'none';
+            });
+            updateAlertCounts();
+            renderGeoMap();
+          }
+        });
+      }
+    } catch(err) {
+      console.error("Error parseando SSE packet stream: ", err);
+    }
+  };
+
+  sseSource.onerror = function() {
+    sseSource.close();
+    setTimeout(connectSSE, 5000);
+  };
+}
+
+function initDemoMode() {
+  for (let i=0;i<24;i++){
+    const p = makePacket();
+    STATE.packets.push(p);
+    renderPacketRow(p, false);
+  }
+  STATE.alerts = [...SEED_ALERTS];
+  renderAlerts();
+  renderBlacklist();
+  updateConfigPreview();
+  renderTopology();
+  renderGeoMap();
+  startStream();
+  setInterval(maybeAddRandomAlert, 9000);
+}
+
+/* =====================================================
+   Capture controller — power + pause/resume + live status
+   ===================================================== */
+const CAPTURE_STATE = { running: false, paused: false, last_error: null };
+
+function _setCaptureUi(){
+  const power = $('#btnCaptureToggle');
+  const pause = $('#btnCapturePause');
+  const lblPower = $('#lblCapture');
+  const lblPause = $('#lblCapturePause');
+  const dot = $('#liveDot');
+  const lbl = $('#liveStatusLabel');
+
+  if (CAPTURE_STATE.running) {
+    power.classList.remove('btn-primary');
+    power.classList.add('btn');
+    power.style.borderColor = 'rgba(255,56,96,.45)';
+    power.style.color = '#FFB0C9';
+    lblPower.textContent = 'Apagar';
+    pause.removeAttribute('disabled');
+  } else {
+    power.classList.add('btn-primary');
+    power.style.borderColor = '';
+    power.style.color = '';
+    lblPower.textContent = 'Encender';
+    pause.setAttribute('disabled', '');
+    pause.classList.remove('btn-primary');
+  }
+
+  if (CAPTURE_STATE.paused) {
+    pause.classList.add('btn-primary');
+    lblPause.textContent = 'Reanudar';
+    if (dot) { dot.style.background = 'var(--warn)'; dot.style.boxShadow = '0 0 10px var(--warn)'; }
+    if (lbl) lbl.textContent = `PAUSA · ${(CAPTURE_STATE.interface || '—')}`;
+  } else {
+    pause.classList.remove('btn-primary');
+    lblPause.textContent = 'Pausa';
+    if (CAPTURE_STATE.running) {
+      if (dot) { dot.style.background = 'var(--ok)'; dot.style.boxShadow = '0 0 10px var(--ok)'; }
+      if (lbl) lbl.textContent = `LIVE · capturando en ${CAPTURE_STATE.interface || '—'}`;
+    } else {
+      if (dot) { dot.style.background = 'var(--text-mute)'; dot.style.boxShadow = 'none'; }
+      if (lbl) lbl.textContent = `APAGADO · sensor inactivo`;
+    }
+  }
+}
+
+async function loadCaptureStatus(){
+  if (DEMO_MODE) return;
+  try {
+    const r = await fetch(`${API_BASE}/capture/status`);
+    if (!r.ok) throw new Error();
+    const s = await r.json();
+    CAPTURE_STATE.running = !!s.running;
+    CAPTURE_STATE.paused = !!s.paused;
+    CAPTURE_STATE.interface = s.interface;
+    CAPTURE_STATE.last_error = s.last_error;
+    _setCaptureUi();
+  } catch(_) {}
+}
+
+async function _captureCall(path){
+  if (DEMO_MODE) { showToast('Captura requiere modo real'); return null; }
+  try {
+    const r = await fetch(`${API_BASE}/capture/${path}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+    if (!r.ok) throw new Error();
+    return await r.json();
+  } catch(err) {
+    console.error(err); showToast(`Error en /capture/${path}`); return null;
+  }
+}
+
+async function toggleCapture(){
+  if (!CAPTURE_STATE.running) {
+    showToast('Iniciando captura…');
+    const s = await _captureCall('start');
+    if (s) {
+      if (s.status === 'error') {
+        showToast(`Error: ${s.error || 'Verifica Npcap + admin'}`);
+      } else {
+        showToast(`Captura activa en ${s.interface || 'interfaz'}`);
+      }
+      CAPTURE_STATE.running = !!s.running;
+      CAPTURE_STATE.paused = !!s.paused;
+      CAPTURE_STATE.interface = s.interface;
+      CAPTURE_STATE.last_error = s.last_error;
+    }
+  } else {
+    showToast('Deteniendo captura…');
+    const s = await _captureCall('stop');
+    if (s) {
+      CAPTURE_STATE.running = false;
+      CAPTURE_STATE.paused = false;
+      showToast('Capturador detenido');
+    }
+  }
+  _setCaptureUi();
+}
+
+async function togglePauseCapture(){
+  if (!CAPTURE_STATE.running) return;
+  const path = CAPTURE_STATE.paused ? 'resume' : 'pause';
+  const s = await _captureCall(path);
+  if (s) {
+    CAPTURE_STATE.paused = !!s.paused;
+    showToast(CAPTURE_STATE.paused ? 'Captura pausada' : 'Captura reanudada');
+  }
+  _setCaptureUi();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const power = document.getElementById('btnCaptureToggle');
+  const pause = document.getElementById('btnCapturePause');
+  if (power) power.addEventListener('click', toggleCapture);
+  if (pause) pause.addEventListener('click', togglePauseCapture);
+});
+
+/* =====================================================
+   Top-bar actions: Search · Export · Settings · Profile
+   ===================================================== */
+
+/* ----- DNS detection helper: classify UDP/53 as DNS ----- */
+function classifyProto(event){
+  let proto = event.protocol || 'TCP';
+  if (proto === 'UDP' && (event.dst_port === 53 || event.src_port === 53)) proto = 'DNS';
+  return proto;
+}
+
+/* ----- Search overlay ----- */
+const searchOverlay = $('#searchOverlay');
+const searchInput = $('#searchInput');
+const searchHits = $('#searchHits');
+let searchTerm = '';
+function openSearch(){
+  searchOverlay.style.display = 'flex';
+  searchOverlay.classList.remove('hidden');
+  setTimeout(() => searchInput.focus(), 30);
+}
+function closeSearch(){
+  searchOverlay.style.display = 'none';
+  searchOverlay.classList.add('hidden');
+}
+function applySearchFilter(){
+  const q = searchTerm.trim().toLowerCase();
+  let hits = 0;
+  $$('.pkt-row', pktScroll).forEach(r => {
+    if (!q) { r.style.display = ''; hits++; return; }
+    const txt = r.textContent.toLowerCase();
+    const proto = (r.dataset.proto || '').toLowerCase();
+    const match = txt.includes(q) || proto === q;
+    r.style.display = match ? '' : 'none';
+    if (match) hits++;
+  });
+  searchHits.textContent = q ? `${hits} match` : '';
+}
+$('#btnSearch').addEventListener('click', openSearch);
+$('#searchClear').addEventListener('click', () => { searchInput.value=''; searchTerm=''; applySearchFilter(); searchInput.focus(); });
+searchInput.addEventListener('input', e => { searchTerm = e.target.value; applySearchFilter(); });
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && !drawer.classList.contains('open')) {
+    e.preventDefault(); openSearch();
+  }
+  if (e.key === 'Escape' && !searchOverlay.classList.contains('hidden')) closeSearch();
+});
+searchOverlay.addEventListener('click', e => { if (e.target === searchOverlay) closeSearch(); });
+
+/* ----- Export CSV ----- */
+$('#btnExport').addEventListener('click', async () => {
+  if (DEMO_MODE) { showToast('Export desactivado en modo demo'); return; }
+  try {
+    showToast('Descargando reporte CSV…');
+    const r = await fetch(`${API_BASE}/alerts/export?limit=2000`);
+    if (!r.ok) throw new Error();
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `sdai_alerts_${Date.now()}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  } catch(err) {
+    console.error(err); showToast('Error exportando reporte');
+  }
+});
+
+/* ----- Settings modal ----- */
+const setModal = $('#setModal'), setBackdrop = $('#setBackdrop');
+const DASHBOARD_PREFS = { sumInterval: 3, ppsInterval: 1, bufferSize: 300 };
+let intervalHandles = { summary: null, pps: null, trend: null, alerts: null };
+
+function openSettings(){
+  setModal.classList.remove('hidden'); setBackdrop.classList.remove('hidden');
+  $('#sSetSum').value  = DASHBOARD_PREFS.sumInterval; $('#vSetSum').textContent = DASHBOARD_PREFS.sumInterval;
+  $('#sSetPps').value  = DASHBOARD_PREFS.ppsInterval; $('#vSetPps').textContent = DASHBOARD_PREFS.ppsInterval;
+  $('#sSetBuf').value  = DASHBOARD_PREFS.bufferSize; $('#vSetBuf').textContent = DASHBOARD_PREFS.bufferSize;
+}
+function closeSettings(){ setModal.classList.add('hidden'); setBackdrop.classList.add('hidden'); }
+$('#btnSettings').addEventListener('click', openSettings);
+$('#setClose').addEventListener('click', closeSettings);
+setBackdrop.addEventListener('click', closeSettings);
+
+function restartIntervals(){
+  if (DEMO_MODE) return;
+  for (const k in intervalHandles) {
+    if (intervalHandles[k]) clearInterval(intervalHandles[k]);
+  }
+  intervalHandles.summary = setInterval(loadSummaryStats, DASHBOARD_PREFS.sumInterval * 1000);
+  intervalHandles.pps     = setInterval(loadPps,           DASHBOARD_PREFS.ppsInterval * 1000);
+  intervalHandles.trend   = setInterval(loadTrend, 15000);
+  intervalHandles.alerts  = setInterval(loadAlerts, 30000);
+}
+
+$('#sSetSum').addEventListener('input', e => {
+  DASHBOARD_PREFS.sumInterval = +e.target.value; $('#vSetSum').textContent = DASHBOARD_PREFS.sumInterval;
+  restartIntervals();
+});
+$('#sSetPps').addEventListener('input', e => {
+  DASHBOARD_PREFS.ppsInterval = +e.target.value; $('#vSetPps').textContent = DASHBOARD_PREFS.ppsInterval;
+  restartIntervals();
+});
+$('#sSetBuf').addEventListener('input', e => {
+  DASHBOARD_PREFS.bufferSize = +e.target.value; $('#vSetBuf').textContent = DASHBOARD_PREFS.bufferSize;
+  while (pktScroll.children.length > DASHBOARD_PREFS.bufferSize) pktScroll.removeChild(pktScroll.firstChild);
+});
+$('#setReset').addEventListener('click', () => resetSensor());
+
+/* ----- Profile dropdown ----- */
+const profileMenu = $('#profileMenu');
+$('#btnProfile').addEventListener('click', e => {
+  e.stopPropagation();
+  profileMenu.classList.toggle('hidden');
+});
+document.addEventListener('click', e => {
+  if (!profileMenu.contains(e.target) && e.target.id !== 'btnProfile') profileMenu.classList.add('hidden');
+});
+$('#pmReset').addEventListener('click', () => { profileMenu.classList.add('hidden'); resetSensor(); });
+$('#pmCopy').addEventListener('click', () => {
+  navigator.clipboard.writeText(window.location.href).then(() => showToast('URL copiada'));
+  profileMenu.classList.add('hidden');
+});
+
+async function resetSensor(){
+  if (DEMO_MODE) { showToast('Reset solo en modo real'); return; }
+  try {
+    const r = await fetch(`${API_BASE}/stats/reset`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    showToast('Sensor reiniciado · contadores en cero');
+    STATE.ppsHistory = [];
+    pktScroll.innerHTML = '';
+    STATE.stats = { TCP:0, UDP:0, ICMP:0, DNS:0, ARP:0, total:0 };
+    updatePacketStats();
+    await loadSummaryStats(); await loadAlerts(); await loadTrend();
+  } catch(err) {
+    console.error(err); showToast('Error reiniciando sensor');
+  }
+}
+
+/* ----- Sensor info → topbar + profile menu ----- */
+async function loadSensorInfo(){
+  try {
+    const r = await fetch(`${API_BASE}/stats/sensor`);
+    if (!r.ok) throw new Error();
+    const s = await r.json();
+    $('#liveStatusLabel').textContent = `LIVE · capturando en ${s.interface || '—'}`;
+    const ch = s.notifications || {};
+    $('#pmSensor').innerHTML =
+      `<div>Interfaz: <span class="text-white">${s.interface || '—'}</span></div>` +
+      `<div>Supabase: <span class="${s.supabase_connected ? 'text-[color:var(--ok)]' : 'text-[color:var(--crit)]'}">${s.supabase_connected ? 'conectado' : 'offline'}</span></div>` +
+      `<div>Telegram: <span class="${ch.telegram ? 'text-[color:var(--ok)]' : 'text-[color:var(--text-mute)]'}">${ch.telegram ? 'activo' : 'no configurado'}</span></div>` +
+      `<div>Email: <span class="${ch.email ? 'text-[color:var(--ok)]' : 'text-[color:var(--text-mute)]'}">${ch.email ? 'activo' : 'no configurado'}</span></div>`;
+  } catch(err) {
+    $('#pmSensor').textContent = 'sensor offline';
+  }
+}
+
+/* =====================================================
+   Investigate IP modal
+   ===================================================== */
+const invModal = $('#invModal'), invBackdrop = $('#invBackdrop');
+let invCurrentIp = null;
+
+async function openInvestigate(srcIp){
+  if (!srcIp) return;
+  invCurrentIp = srcIp;
+  $('#invSub').textContent = `IP: ${srcIp}`;
+  $('#invBody').innerHTML = `<div class="text-[color:var(--text-mute)] text-center py-10">cargando…</div>`;
+  invModal.classList.remove('hidden'); invBackdrop.classList.remove('hidden');
+  if (DEMO_MODE) {
+    $('#invBody').innerHTML = `<div class="text-[color:var(--text-mute)] text-center py-10">Investigación requiere modo real (servidor SDAI activo)</div>`;
+    return;
+  }
+  try {
+    const r = await fetch(`${API_BASE}/events/investigate/${encodeURIComponent(srcIp)}`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    renderInvestigate(data);
+  } catch(err) {
+    console.error(err);
+    $('#invBody').innerHTML = `<div class="text-[color:var(--crit)] text-center py-6">Error al investigar la IP</div>`;
+  }
+}
+
+function renderInvestigate(d){
+  const geo = d.geo || {};
+  const summary = d.summary || {};
+  const ports = Object.entries(d.ports || {});
+  const protos = Object.entries(d.protocols || {});
+  const recentAlerts = (d.alerts || []).slice(0, 5);
+  const blChip = summary.is_blacklisted
+    ? '<span class="px-2 py-0.5 rounded text-[10px] font-mono" style="background: var(--crit-soft); color:#FFB0C9;">EN BLACKLIST</span>'
+    : '<span class="px-2 py-0.5 rounded text-[10px] font-mono" style="background: var(--ok-soft); color:#9AF7C5;">LIMPIA</span>';
+
+  $('#invBody').innerHTML = `
+    <div class="grid grid-cols-3 gap-2">
+      <div class="glass-tight p-3"><div class="text-[10px] uppercase tracking-[.16em] text-[color:var(--text-mute)]">Eventos</div><div class="font-mono text-[22px] tabular-nums">${summary.events_count || 0}</div></div>
+      <div class="glass-tight p-3"><div class="text-[10px] uppercase tracking-[.16em] text-[color:var(--text-mute)]">Alertas</div><div class="font-mono text-[22px] tabular-nums" style="color:var(--warn)">${summary.alerts_count || 0}</div></div>
+      <div class="glass-tight p-3"><div class="text-[10px] uppercase tracking-[.16em] text-[color:var(--text-mute)]">Severidad alta</div><div class="font-mono text-[22px] tabular-nums" style="color:var(--crit)">${summary.high_severity_count || 0}</div></div>
+    </div>
+    <div class="glass-tight p-3">
+      <div class="flex items-center justify-between mb-1">
+        <div class="text-[10px] uppercase tracking-[.16em] text-[color:var(--text-mute)]">Geolocalización</div>
+        ${blChip}
+      </div>
+      <div class="font-mono text-[12px]">${geo.city || '—'}, ${geo.country || '—'} ${geo.latitude ? `· (${geo.latitude.toFixed(2)}, ${geo.longitude.toFixed(2)})` : ''}</div>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div class="glass-tight p-3">
+        <div class="text-[10px] uppercase tracking-[.16em] text-[color:var(--text-mute)] mb-1">Top puertos destino</div>
+        ${ports.length === 0 ? '<div class="text-[color:var(--text-mute)] text-[12px]">sin datos</div>' :
+          ports.map(([p,c]) => `<div class="flex justify-between font-mono text-[12px]"><span>${p}</span><span class="text-[color:var(--text-dim)]">${c}</span></div>`).join('')}
+      </div>
+      <div class="glass-tight p-3">
+        <div class="text-[10px] uppercase tracking-[.16em] text-[color:var(--text-mute)] mb-1">Protocolos</div>
+        ${protos.length === 0 ? '<div class="text-[color:var(--text-mute)] text-[12px]">sin datos</div>' :
+          protos.map(([p,c]) => `<div class="flex justify-between font-mono text-[12px]"><span>${p}</span><span class="text-[color:var(--text-dim)]">${c}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="glass-tight p-3">
+      <div class="text-[10px] uppercase tracking-[.16em] text-[color:var(--text-mute)] mb-2">Últimas alertas relacionadas</div>
+      ${recentAlerts.length === 0 ? '<div class="text-[color:var(--text-mute)] text-[12px]">sin alertas</div>' :
+        recentAlerts.map(a => `
+          <div class="py-1.5 border-b border-[color:var(--line)] last:border-0">
+            <div class="flex items-center gap-2 text-[10px] font-mono">
+              <span style="color:${a.severity==='alta'?'var(--crit)':a.severity==='media'?'var(--warn)':'var(--info)'}">${(a.severity||'').toUpperCase()}</span>
+              <span class="text-[color:var(--text-mute)]">${a.threat_type}</span>
+              <span class="text-[color:var(--text-mute)] ml-auto">${(a.created_at||'').slice(11,19)}</span>
+            </div>
+            <div class="text-[11px] mt-0.5">${a.description || ''}</div>
+          </div>
+        `).join('')}
+    </div>
+  `;
+}
+
+function closeInvestigate(){ invModal.classList.add('hidden'); invBackdrop.classList.add('hidden'); invCurrentIp = null; }
+$('#invClose').addEventListener('click', closeInvestigate);
+invBackdrop.addEventListener('click', closeInvestigate);
+$('#invBlock').addEventListener('click', () => {
+  if (invCurrentIp) { addToBlacklist(invCurrentIp); showToast(`IP ${invCurrentIp} añadida a blacklist`); }
+});
+$('#invFilter').addEventListener('click', () => {
+  if (invCurrentIp) { searchTerm = invCurrentIp; openSearch(); searchInput.value = invCurrentIp; applySearchFilter(); closeInvestigate(); }
+});
+
+/* =====================================================
+   Drawer extras: Copy JSON · Follow flow · Hex tab
+   ===================================================== */
+const drawerTabs = $$('.drawer .tab') || [];
+const drawerBody = $('#drawerBody');
+let currentDecoded = null;
+let drawerTab = 'JSON';
+
+function renderDrawerBody(){
+  if (!currentDecoded) { drawerBody.innerHTML = ''; return; }
+  if (drawerTab === 'JSON') {
+    drawerBody.innerHTML = `<pre style="white-space:pre-wrap; word-break:break-word;">${syntaxJSON(currentDecoded)}</pre>`;
+  } else if (drawerTab === 'Hex') {
+    const text = JSON.stringify(currentDecoded);
+    const bytes = new TextEncoder().encode(text);
+    let out = '';
+    for (let i=0; i<bytes.length; i+=16) {
+      const slice = bytes.slice(i, i+16);
+      const hex = [...slice].map(b => b.toString(16).padStart(2,'0')).join(' ');
+      const asc = [...slice].map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('');
+      out += `<div><span class="text-[color:var(--text-mute)]">${i.toString(16).padStart(4,'0')}</span>  <span class="j-num">${hex.padEnd(48, ' ')}</span>  <span class="j-str">${asc}</span></div>`;
+    }
+    drawerBody.innerHTML = `<div class="font-mono text-[11px] leading-snug">${out}</div>`;
+  } else { // Capas
+    const layers = [];
+    if (currentDecoded.frame || currentDecoded.length) layers.push({name:'Frame', data:{length: currentDecoded.length, timestamp: currentDecoded.timestamp}});
+    if (currentDecoded.ipv4 || currentDecoded.src_ip) layers.push({name:'IPv4', data:{src: currentDecoded.src_ip, dst: currentDecoded.dst_ip, protocol: currentDecoded.protocol}});
+    if (currentDecoded.tcp || currentDecoded.protocol === 'TCP') layers.push({name:'TCP', data:{src_port: currentDecoded.src_port, dst_port: currentDecoded.dst_port, flags: currentDecoded.flags}});
+    if (currentDecoded.udp || currentDecoded.protocol === 'UDP') layers.push({name:'UDP', data:{src_port: currentDecoded.src_port, dst_port: currentDecoded.dst_port}});
+    if (currentDecoded.icmp || currentDecoded.protocol === 'ICMP') layers.push({name:'ICMP', data:{flags: currentDecoded.flags}});
+    drawerBody.innerHTML = layers.map(l => `
+      <div class="mb-3">
+        <div class="text-[10px] uppercase tracking-[.16em] text-[color:var(--text-mute)] mb-1">${l.name}</div>
+        <pre class="glass-tight px-3 py-2" style="white-space:pre-wrap;">${syntaxJSON(l.data)}</pre>
+      </div>
+    `).join('');
+  }
+}
+drawerTabs.forEach(t => {
+  t.addEventListener('click', () => {
+    drawerTabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    drawerTab = t.textContent.trim();
+    renderDrawerBody();
+  });
+});
+
+// Override openDrawer to capture decoded for tab switching + add follow-flow
+const _origOpenDrawer = openDrawer;
+openDrawer = function(p, row){
+  _origOpenDrawer(p, row);
+  // Re-derive what _origOpenDrawer used
+  currentDecoded = p.raw_data || {
+    src_ip: p.src, dst_ip: p.dst, protocol: p.proto,
+    src_port: p.sport, dst_port: p.dport, flags: p.flags, length: p.size,
+    timestamp: new Date().toISOString()
+  };
+};
+
+const _drawerCopyBtn = $('#drawer .icon-btn[title="Copiar"]') || document.querySelector('#drawer button[title="Copiar"]');
+if (_drawerCopyBtn) {
+  _drawerCopyBtn.addEventListener('click', () => {
+    if (!currentDecoded) return;
+    navigator.clipboard.writeText(JSON.stringify(currentDecoded, null, 2)).then(() => showToast('JSON copiado al portapapeles'));
+  });
+}
+
+// Follow flow: filter packet table to selected packet's src↔dst pair
+$('#drawerFollow').addEventListener('click', () => {
+  if (!STATE.selected) return;
+  const a = STATE.selected.src, b = STATE.selected.dst;
+  searchTerm = a;
+  openSearch();
+  searchInput.value = a;
+  applySearchFilter();
+  showToast(`Mostrando flujo ${a} ↔ ${b}`);
+  closeDrawer();
+});
+
+/* ----- Patch alerts: 'Investigar' opens modal ----- */
+const _origBuildAlertCard = buildAlertCard;
+buildAlertCard = function(a){
+  const card = _origBuildAlertCard(a);
+  const invBtn = card.querySelector('.investigateBtn');
+  if (invBtn) {
+    invBtn.replaceWith(invBtn.cloneNode(true));
+    card.querySelector('.investigateBtn').addEventListener('click', () => openInvestigate(a.src));
+  }
+  return card;
+};
+
+/* -------- Initialization Entrypoint -------- */
+async function init(){
+  initHeartbeat();
+  renderTrend();
+
+  await checkMode();
+
+  if (DEMO_MODE) {
+    initDemoMode();
+  } else {
+    await loadSensorInfo();
+    await loadCaptureStatus();
+    await loadConfig();
+    await loadAlerts();
+    await loadSummaryStats();
+    await loadPps();
+    await loadTrend();
+    connectSSE();
+    restartIntervals();
+    setInterval(loadSensorInfo, 30000);
+    setInterval(loadCaptureStatus, 5000);
+  }
+}
+init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Env
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Captures
+*.pcap
+*.pcapng
+*.jsonl
+
+# GeoIP databases (download separately, see scripts/download_geoip.py)
+*.mmdb
+
+# Build artifacts / archives
+*.zip
+*.tar.gz
+
+# Local notes / screenshots
+imagenes de dudas/
+
+# Supabase local
+supabase/.temp/
