@@ -191,13 +191,49 @@ Simulación: 667 paquetes → 11 alertas (real 76 acumuladas) → 4/4 tipos dete
 - Repo git inicializado localmente en `proyecto_franklin/.git/` (antes apuntaba accidentalmente a `C:\.git/`)
 - IPs públicas reales en `simulate_attacks.py` para que GeoLite2 resuelva coords reales
 
-### Sprint 7-8 — Optimización
-- Pruebas carga 10k pkt/min
-- Async/queue Scapy → DB (evita bloqueo)
-- Batch INSERT (cada 100 eventos en lugar de 1 a 1)
-- Logging estructurado
-- Manejo errores robusto
-- Refactor
+## Sprint 7-8 — Optimización — COMPLETADO ✅
+**Fecha:** 2026-05-24
+
+### Entregables verificados
+
+| Componente | Estado | Archivo / Notas |
+|------------|--------|-----------------|
+| Async queue Scapy → DB | ✅ | `app/db/batch_writer.py` — `asyncio.Queue` consumidor en background, no bloquea sniffer |
+| Batch INSERT (100 eventos) | ✅ | `EventBatchWriter(batch_size=100, flush_interval=1.0)` — agrupa hasta cumplir tamaño o timeout |
+| Logging estructurado | ✅ | `app/utils/logger.py` — `StructuredFormatter` JSON (Docker/prod) + ANSI coloreado (dev), `LOG_FORMAT` env var |
+| Manejo errores robusto | ✅ | Retry con backoff en `execute_with_retry`, `CancelledError` handling, flush garantizado en shutdown vía `lifespan` |
+| Rate limiter proxy-aware | ✅ | `app/utils/rate_limiter.py` — sliding window, `X-Forwarded-For` / `X-Real-IP` parsing |
+| Pruebas carga 10k pkt/min | ✅ | `scripts/load_test.py` (real) + `tests/test_load.py` (CI 500 pkt mock) |
+| Security warnings boot | ✅ | `app/main.py:22-38` — alerta default creds + CORS mal configurado |
+| Refactor (separación batch vs threat path) | ✅ | `routers/events.py` — flow A (encola batch) vs flow B (insert inmediato con event_id) |
+
+### Tests
+- 3 tests nuevos `test_optimizations.py` (batch, logger JSON, logger consola)
+- 3 tests nuevos `test_load.py` (500 paquetes sin pérdida, batch_size respetado, burst 200 in-process)
+
+### Pipeline optimizado
+```
+Scapy sniff → /events/ingest → detectores in-memory
+                              ├─ tráfico normal (99%) → batch_writer.enqueue() → batch 100 → Supabase
+                              └─ amenaza         → INSERT inmediato + alert + notify
+```
+
+### Verificación carga objetivo (10k pkt/min = 167 pkt/s)
+```bash
+# 1. Levantar backend (Docker o local)
+docker compose up -d
+# o: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# 2. Ejecutar carga sostenida 60s a 167 pkt/s
+python scripts/load_test.py --rate 167 --duration 60 --concurrency 50
+
+# Veredicto esperado:
+#   throughput ≥ 95% objetivo  ✅
+#   tasa error < 1%            ✅
+#   p95 < 500ms                ✅
+```
+
+---
 
 ### Sprint 9 — Documentación + entrega
 - Manual instalación PyME (paso a paso, no técnico)
