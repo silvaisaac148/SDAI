@@ -56,3 +56,8 @@ supabase/.temp/
 # Tunnel binary (descargado por developer, no commitear)
 tools/cloudflared.exe
 tools/cloudflared
+tools/*.log
+tools/*.log.err
+
+# Guia personal de arranque (no compartir, contiene passwords + URL)
+GUIA_ARRANCAR_LOCAL.md

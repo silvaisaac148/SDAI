@@ -1,12 +1,12 @@
-# SDAI — Deploy automatizado con Cloudflare Tunnel
+# SDAI - Deploy automatizado con Cloudflare Tunnel
 #
 # Automatiza:
-#   1. Verifica que .env existe
+#   1. Verifica .env existe
 #   2. Descarga cloudflared.exe si falta
 #   3. Arranca backend uvicorn en background
 #   4. Espera healthcheck
 #   5. Levanta tunnel Cloudflare quick URL
-#   6. Imprime URL pública para compartir
+#   6. Imprime URL publica para compartir
 #
 # Uso:
 #   .\scripts\deploy_tunnel.ps1
@@ -24,7 +24,7 @@ $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Pa
 $CloudflaredPath = Join-Path $ProjectRoot "tools\cloudflared.exe"
 $VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 
-# ─── Modo Stop ─────────────────────────────────────────────────
+# --- Modo Stop ---
 if ($Stop) {
     Write-Host "Deteniendo SDAI + tunnel..." -ForegroundColor Yellow
 
@@ -45,7 +45,7 @@ if ($Stop) {
     exit 0
 }
 
-# ─── Pre-checks ────────────────────────────────────────────────
+# --- Pre-checks ---
 Write-Host "SDAI Deploy Tunnel" -ForegroundColor Cyan
 Write-Host "==================" -ForegroundColor Cyan
 Write-Host ""
@@ -68,7 +68,7 @@ Write-Host "[2/5] venv listo" -ForegroundColor Green
 
 # cloudflared.exe existe? Si no, descargar
 if (-not (Test-Path $CloudflaredPath)) {
-    Write-Host "[3/5] cloudflared.exe no encontrado — descargando..." -ForegroundColor Yellow
+    Write-Host "[3/5] cloudflared.exe no encontrado - descargando..." -ForegroundColor Yellow
     $toolsDir = Join-Path $ProjectRoot "tools"
     if (-not (Test-Path $toolsDir)) { New-Item -ItemType Directory -Path $toolsDir | Out-Null }
     $url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
@@ -83,7 +83,7 @@ if (-not (Test-Path $CloudflaredPath)) {
     Write-Host "[3/5] cloudflared ya instalado" -ForegroundColor Green
 }
 
-# Puerto 8000 libre?
+# Puerto libre?
 $existing = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
 if ($existing) {
     Write-Host "ADVERTENCIA: puerto $Port ocupado. Liberando..." -ForegroundColor Yellow
@@ -93,7 +93,7 @@ if ($existing) {
     Start-Sleep -Seconds 2
 }
 
-# ─── Arrancar backend ─────────────────────────────────────────
+# --- Arrancar backend ---
 Write-Host "[4/5] Arrancando backend uvicorn..." -ForegroundColor Cyan
 $backendLog = Join-Path $ProjectRoot "tools\backend.log"
 $backendProc = Start-Process -FilePath $VenvPython `
@@ -121,7 +121,7 @@ if ($attempts -ge 30) {
 }
 Write-Host "      Backend OK (PID $($backendProc.Id))" -ForegroundColor Green
 
-# ─── Arrancar tunnel ──────────────────────────────────────────
+# --- Arrancar tunnel ---
 Write-Host "[5/5] Levantando Cloudflare Tunnel..." -ForegroundColor Cyan
 $tunnelLog = Join-Path $ProjectRoot "tools\tunnel.log"
 $tunnelProc = Start-Process -FilePath $CloudflaredPath `
@@ -151,11 +151,11 @@ if (-not $tunnelUrl) {
     exit 1
 }
 
-# ─── Imprimir resumen ─────────────────────────────────────────
+# --- Resumen ---
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "================================================================" -ForegroundColor Green
 Write-Host "  SDAI EN PRODUCCION" -ForegroundColor Green
-Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "================================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  URL publica (comparte con quien debas):" -ForegroundColor Cyan
 Write-Host "    $tunnelUrl" -ForegroundColor White
@@ -177,7 +177,7 @@ Write-Host ""
 Write-Host "  Para detener todo:" -ForegroundColor Yellow
 Write-Host "    .\scripts\deploy_tunnel.ps1 -Stop" -ForegroundColor White
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "================================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  NO CIERRES esta ventana ni suspendas la laptop." -ForegroundColor Yellow
 Write-Host "  El tunnel muere si los procesos terminan." -ForegroundColor Yellow
