@@ -27,7 +27,8 @@ Este manual está pensado para que **cualquier persona**, aún sin experiencia p
 15. [Pruebas — simular ataques](#15-pruebas--simular-ataques)
 16. [Resolución de problemas](#16-resolución-de-problemas)
 17. [Seguridad — buenas prácticas](#17-seguridad--buenas-prácticas)
-18. [FAQ](#18-faq)
+18. [Gestión de usuarios y roles](#18-gestión-de-usuarios-y-roles)
+19. [FAQ](#19-faq)
 
 ---
 
@@ -1071,7 +1072,201 @@ Es por bloqueo del CDN (Globe.gl + Three.js). Si tu red filtra `unpkg.com` / `cd
 
 ---
 
-## 18. FAQ
+## 18. Gestión de usuarios y roles
+
+SDAI **no usa Firebase, Google Auth, Cloudflare Access, ni verificación por SMS/Email.** El sistema usa autenticación propia con bcrypt + cookies HMAC. Esto reduce dependencias externas, costos a cero, y mantiene control total.
+
+### 18.1. Modelo de usuarios
+
+| Concepto | Cómo funciona |
+|----------|---------------|
+| **Creación** | Solo administradores crean usuarios. **No hay auto-registro público.** |
+| **Almacenamiento** | Tabla `users` en Supabase (campos: `username`, `password_hash`, `role`, `active`, `last_login_at`) |
+| **Passwords** | bcrypt con salt único por usuario, costo estándar 12 rounds |
+| **Sesiones** | Cookies HMAC-SHA256 firmadas con `SESSION_SECRET_KEY` + timestamp Unix. Duración 18h. |
+| **Roles** | `admin` (control total) · `viewer` (solo lectura) |
+| **Bootstrap** | Si tabla `users` vacía o DB offline → fallback a `ADMIN_USERNAME` / `ADMIN_PASSWORD` del `.env` |
+| **Rate limit** | 5 intentos login/min por IP. Bloquea brute force. |
+| **Verificación email/SMS** | **No requerida.** El admin que crea el usuario lo valida personalmente. |
+
+### 18.2. Dos escenarios típicos
+
+#### Escenario A — Eres el responsable de la PyME piloto
+
+Tú creas las cuentas de tu equipo. Ellos solo reciben usuario + password y ya pueden entrar.
+
+```bash
+# 1. Asegurar que SUPABASE_URL/SUPABASE_KEY estén en .env (sección 8)
+
+# 2. Crear cuenta administrador para Juan
+python scripts/create_user.py juan_perez --role admin --insert
+
+# El script pide:
+#   Password:  (oculto)
+#   Confirm :  (oculto)
+# Luego inserta directamente en Supabase y confirma:
+#   "User 'juan_perez' upserted into Supabase (admin)."
+
+# 3. Crear cuenta viewer (solo lectura) para Ana
+python scripts/create_user.py ana_garcia --role viewer --insert
+
+# 4. Comunicar a cada usuario:
+#    Usuario: juan_perez
+#    Password: <la que escribiste>
+#    URL: https://tu-tunnel.trycloudflare.com  (o IP/dominio donde corra)
+```
+
+#### Escenario B — Eres una PyME que descargó SDAI open source
+
+Tú eres el primer admin. Configura el bootstrap, luego crea más usuarios desde dentro.
+
+```bash
+# 1. Editar .env (ANTES de exponer al internet)
+ADMIN_USERNAME=tu_admin
+ADMIN_PASSWORD=ContraseñaMuyFuerte_2026!Aleatoria
+SESSION_SECRET_KEY=<generar con python -c "import secrets; print(secrets.token_urlsafe(48))">
+
+# 2. Arrancar SDAI
+docker compose up -d
+
+# 3. Login con bootstrap admin
+#    Abrir http://localhost:8000/login
+#    Usuario: tu_admin
+#    Password: la que pusiste
+
+# 4. Crear más usuarios para tu equipo
+python scripts/create_user.py analista_red --role viewer --insert
+python scripts/create_user.py soporte_ti --role admin --insert
+
+# 5. (Opcional) Desactivar el bootstrap fallback eliminándolo del .env
+#    una vez que existan usuarios en la tabla:
+ADMIN_USERNAME=
+ADMIN_PASSWORD=
+#    Solo los usuarios de Supabase podrán entrar.
+```
+
+### 18.3. Roles y permisos
+
+| Acción | admin | viewer |
+|--------|:-----:|:------:|
+| Ver dashboard | ✅ | ✅ |
+| Ver alertas | ✅ | ✅ |
+| Ver eventos | ✅ | ✅ |
+| Exportar CSV | ✅ | ✅ |
+| Investigar IP | ✅ | ✅ |
+| Resolver alertas | ✅ | ❌ |
+| Cambiar thresholds | ✅ | ❌ |
+| Encender/apagar sniffer | ✅ | ❌ |
+| Reset sensor | ✅ | ❌ |
+| Bloquear IP (firewall) | ✅ | ❌ |
+| Crear usuarios | ✅ (via script) | ❌ |
+
+> **Nota técnica:** la separación de roles en la UI/API está parcialmente implementada. El campo `role` se guarda y consulta, pero el enforcement granular por endpoint queda en roadmap. Para MVP, usa `viewer` como capa de bloqueo psicológico — el endurecimiento por endpoint llegará en sprint hardening.
+
+### 18.4. Rotación de passwords
+
+Cuando un usuario quiere cambiar su password (o un admin quiere resetear):
+
+```bash
+# Re-correr create_user.py con el mismo username sobrescribe el hash
+python scripts/create_user.py juan_perez --role admin --insert
+# Password: <nueva password>
+# Confirm : <nueva password>
+# El upsert reemplaza el password_hash y mantiene last_login_at.
+```
+
+Si un usuario olvida su password:
+1. Admin corre el comando anterior con un password temporal aleatorio.
+2. Admin comunica el temporal por canal seguro.
+3. Usuario inicia sesión, abre la próxima sección si añadimos endpoint `PATCH /auth/me/password` (roadmap).
+
+### 18.5. Desactivar / eliminar usuarios
+
+Para ex-empleados o accesos comprometidos:
+
+**Opción A — desactivar (preserva histórico de `last_login_at`):**
+
+En Supabase SQL Editor:
+```sql
+UPDATE users SET active = FALSE WHERE username = 'ex_empleado';
+```
+
+**Opción B — eliminar definitivamente:**
+
+```sql
+DELETE FROM users WHERE username = 'ex_empleado';
+```
+
+El usuario no podrá iniciar sesión inmediatamente (el lookup ya filtra `active=TRUE`). Las sesiones activas expiran naturalmente en ≤18h. Para invalidación inmediata de todas las sesiones existentes:
+
+```bash
+# Genera nueva SESSION_SECRET_KEY y reinicia
+# Todas las cookies firmadas con la key vieja quedan inválidas.
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+# Pega en .env: SESSION_SECRET_KEY=<nuevo>
+docker compose restart
+```
+
+### 18.6. Auditoría de accesos
+
+Consultar quién entró recientemente:
+
+```sql
+SELECT username, role, last_login_at, active
+FROM users
+ORDER BY last_login_at DESC NULLS LAST;
+```
+
+Para registro detallado de cada login (no implementado por defecto, fácil de añadir):
+- Migrar a tabla `login_audit` (`id`, `username`, `ip`, `user_agent`, `ts`, `success`)
+- Hook en `authenticate()` que inserta cada intento
+
+### 18.7. Checklist hardening pre-producción
+
+Antes de exponer SDAI al internet (vía Cloudflare Tunnel, VPS, dominio público):
+
+- [ ] `ADMIN_PASSWORD` cambiado del default `admin123`
+- [ ] `SESSION_SECRET_KEY` generada aleatoria (no la del `.env.example`)
+- [ ] `SESSION_COOKIE_SECURE=true` si la URL final es HTTPS
+- [ ] `CORS_ALLOWED_ORIGINS` con dominio específico (no `*`)
+- [ ] Tabla `users` poblada con al menos 1 admin real
+- [ ] (Opcional) Bootstrap `ADMIN_USERNAME` vaciado tras crear admin DB
+- [ ] Supabase RLS policies revisadas (no usar `anon` en producción)
+- [ ] `LOG_FORMAT=json` para parsing por SIEM
+- [ ] Backups Supabase automáticos verificados
+- [ ] Plan de respuesta documentado: qué hacer si una cuenta se compromete
+
+### 18.8. Por qué NO usamos sistemas externos
+
+Decisiones de arquitectura y justificación:
+
+| Sistema descartado | Por qué |
+|--------------------|---------|
+| **Firebase Authentication** | Vendor lock-in Google + cuota gratis limitada (50K MAU) + complica self-hosting + privacidad de credenciales en Google |
+| **Cloudflare Access (Zero Trust)** | Capa extra requiere cuenta Cloudflare por usuario, fricción onboarding PyME, no escala a empleados sin email corporativo |
+| **OAuth (Google/GitHub/Microsoft)** | Asume todo empleado PyME tiene cuenta corporativa esos proveedores. Muchas PyMEs Barinas usan emails personales |
+| **Magic links email** | Requiere SMTP confiable saliente (no todas las PyMEs tienen), latencia entrega email, riesgo phishing |
+| **OTP SMS (Twilio/Vonage)** | $0.01-0.05 por SMS = $5-50/mes solo en autenticación. No escala. Sin valor real vs password fuerte. |
+| **Auth0 / Clerk / Stytch** | Plan free limitado, vendor lock-in, $$$ al crecer, complica auditoría |
+| **LDAP / Active Directory** | PyMEs pequeñas no tienen Windows Server / AD. Overhead administración |
+| **2FA TOTP (Google Authenticator)** | Bueno tener (roadmap), pero MVP. Añade fricción crítica si user pierde celular |
+| **Captcha (hCaptcha/reCAPTCHA)** | Rate-limiter por IP ya bloquea brute force. Fricción innecesaria UX |
+
+**Resumen filosófico:** SDAI es para PyMEs con 5-20 empleados, no SaaS multi-tenant. El modelo "admin valida + crea usuarios manualmente" cubre el 100% del caso de uso con cero dependencias externas y cero costos recurrentes.
+
+### 18.9. Cuándo SÍ migrar a algo más robusto
+
+Si tu PyME crece a >50 empleados o necesitas:
+- Single Sign-On con sistema corporativo
+- 2FA obligatorio cumplimiento normativo
+- Auditoría detallada con compliance (SOC2, ISO 27001)
+- Federación con clientes externos
+
+Considera entonces: **Keycloak self-hosted** (gratis, open source, soporta SAML/OIDC/LDAP) como reverse-proxy auth delante de SDAI. No requiere reescribir SDAI — basta protegerlo detrás del proxy.
+
+---
+
+## 19. FAQ
 
 **¿Funciona sin internet?**
 Parcialmente. El backend y sniffer corren sin internet, pero pierdes: Supabase (DB), GeoIP enrichment, Telegram, Gmail, Globe.gl CDN. Para uso 100% offline necesitas una instancia local de Postgres + tile servers propios — fuera del MVP.
