@@ -208,23 +208,122 @@ docker compose up
 
 ---
 
-## 👥 Pasar credenciales al equipo
+## 👥 Gestión de usuarios — qué puede hacer cada uno
 
-Isaac maneja la creación de usuarios. Si Carlos o Ángel necesitan acceso:
+### Tus credenciales iniciales (entregadas por Isaac)
+
+| Compañero | Username | Cómo recibirás password |
+|-----------|----------|--------------------------|
+| Carlos | `carlos_herrera` | Telegram privado / Signal / WhatsApp directo |
+| Ángel | `angel_ramos` | Telegram privado / Signal / WhatsApp directo |
+| Isaac | `Silvaisaac148` o `isaac` (bootstrap) | Ya las tiene |
+
+**Importante:** NUNCA compartas tu password en grupos públicos, emails sin cifrar, o capturas que termines subiendo a redes sociales.
+
+### Cambiar tu password (PRIMER paso al recibirla)
+
+Es buena práctica cambiar la password temporal por una tuya. Pasos:
 
 ```bash
-# Isaac corre:
-python scripts/create_user.py nombre_nuevo --role admin --insert
-# Password: (escribe una temporal)
-# Confirm:  (repite)
-
-# Comparte con el compañero por canal seguro (NO email, mejor Telegram secret chat o WhatsApp):
-#   Usuario: nombre_nuevo
-#   Password: <temporal>
-#   URL: https://xxxxx.trycloudflare.com
+# 1. Asegúrate que .env tiene SUPABASE_URL + SUPABASE_KEY (te los pasó Isaac)
+# 2. Corre el script con TU username
+cd SDAI
+python scripts/create_user.py carlos_herrera --role admin --insert
+# Te pedirá:
+#   Password:  (escribe la nueva, mínimo 12 chars, mezcla letras/números/símbolos)
+#   Confirm :  (repite)
+# El script HASHEA con bcrypt y hace UPSERT en Supabase.
+# Tu vieja password queda inválida inmediatamente.
 ```
 
-El compañero al loguearse por primera vez **debería** cambiar su password. Como SDAI no tiene endpoint `PATCH /auth/me/password` aún (roadmap), el cambio se hace re-corriendo `create_user.py` con el mismo username.
+**Sugerencia para password robusta:**
+```bash
+python -c "import secrets, string; chars=string.ascii_letters+string.digits+'!@#%'; print(''.join(secrets.choice(chars) for _ in range(20)))"
+```
+
+### Crear tus propios usuarios adicionales
+
+Como tu rol es `admin`, puedes crear más usuarios para gente que necesite acceso (familia, otro estudiante, futuros colaboradores PyME):
+
+```bash
+# Crear un usuario "viewer" (solo lectura) para tu hermana que quiere ver
+python scripts/create_user.py maria_lopez --role viewer --insert
+# Password: <pones una>
+# Confirm:  <repites>
+# Le pasas: usuario=maria_lopez, password=<la que pusiste>
+```
+
+**Roles disponibles:**
+- `admin` — control total (cambiar configs, encender sniffer, resolver alertas)
+- `viewer` — solo lectura (ver dashboard, alertas, eventos, exportar CSV)
+
+### Listar todos los usuarios existentes
+
+```bash
+python -c "
+import sys; sys.path.insert(0, 'backend')
+from app.db.supabase_client import get_client, execute_with_retry
+res = execute_with_retry(lambda c: c.table('users').select('username,role,active,last_login_at').order('username'))
+for r in res.data:
+    print(f'{r[\"username\"]:25} role={r[\"role\"]:8} active={r[\"active\"]} last={r.get(\"last_login_at\",\"never\")}')"
+```
+
+### Desactivar un usuario (sin borrarlo)
+
+Útil si alguien deja el equipo pero quieres preservar histórico de logins:
+
+```python
+# Desde Supabase SQL Editor:
+UPDATE users SET active = FALSE WHERE username = 'usuario_a_desactivar';
+```
+
+El usuario ya no podrá loguearse, pero su `last_login_at` se mantiene para auditoría.
+
+### Eliminar un usuario definitivamente
+
+```python
+# Desde Supabase SQL Editor:
+DELETE FROM users WHERE username = 'usuario_a_eliminar';
+```
+
+### Si olvidaste tu password
+
+No hay endpoint de "olvidé mi password" (no usamos email reset por diseño). Pide a Isaac (o cualquier admin con acceso a SQL Supabase) que te resetee:
+
+```bash
+# Quien tenga acceso SQL Supabase corre:
+python scripts/create_user.py tu_username --role admin --insert
+# Pone password temporal nueva
+# Te la pasa por canal seguro
+# Tú entras y la cambias por otra que solo tú sepas
+```
+
+### Configurar TU propio canal Telegram (no usar el de Isaac)
+
+Por defecto las notificaciones van al bot Telegram que Isaac configuró en SU `.env`. Si tu instancia tiene su propio `.env`, configura tu propio bot:
+
+1. Habla con [@BotFather](https://t.me/BotFather) en Telegram → `/newbot`
+2. Copia el token
+3. En tu `.env`:
+   ```env
+   TELEGRAM_BOT_TOKEN=<tu_token>
+   TELEGRAM_CHAT_ID=<tu_chat_id>
+   ```
+4. Reinicia SDAI
+
+Detalles completos en [`MANUAL_INSTALACION.md §9`](./MANUAL_INSTALACION.md#9-configurar-telegram-para-alertas).
+
+### Configurar TU propia API key Groq/Gemini (no usar la de Isaac)
+
+Igual que Telegram, cada uno debe tener su key personal:
+
+1. Groq: https://console.groq.com → API Keys → Create (gratis, 14k req/día)
+2. En tu `.env`:
+   ```env
+   GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxx
+   ```
+
+Detalles en [`MANUAL_INSTALACION.md §10.5`](./MANUAL_INSTALACION.md#105-configurar-tutor-ia-groq--gemini--opcional-pero-recomendado).
 
 ---
 
