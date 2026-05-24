@@ -26,7 +26,7 @@ Pega esto **al inicio** de cualquier sesión Veo para mantener consistencia visu
 ```
 STYLE GUIDE FOR ALL SCENES:
 - Cinematic, dark-mode aesthetic with cyan and teal accent lights
-- 4K resolution, 24fps, anamorphic lens look
+- 1080p resolution, 24fps, anamorphic lens look
 - Color palette: deep blue (#0a1929), cyan (#00bfff), dark teal (#0f4c5c), white (#ffffff)
 - Lighting: soft rim light from cyan monitors, atmospheric haze
 - Typography overlays use modern sans-serif (Inter / IBM Plex Sans) in white or cyan

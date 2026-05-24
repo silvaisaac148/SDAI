@@ -52,3 +52,7 @@ imagenes de dudas/
 
 # Supabase local
 supabase/.temp/
+
+# Tunnel binary (descargado por developer, no commitear)
+tools/cloudflared.exe
+tools/cloudflared
