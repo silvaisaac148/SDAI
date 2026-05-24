@@ -15,10 +15,12 @@ MVP académico para PyMEs del Estado Barinas, Venezuela. Captura tráfico de red
 | 3-4 | Motor detección 4 amenazas + GeoIP + dashboard live + SSE | ✅ |
 | 5-6 | Notificaciones Telegram + Email + routing por severidad | ✅ |
 | Extras | Botones dashboard funcionales · globo 3D · control sniffer remoto | ✅ |
-| 7-8 | Carga 10k pkt/min · async queue · batch INSERT | pendiente |
-| 9 | Manual PyME + arquitectura + video demo | pendiente |
+| 7-8 | Carga 10k pkt/min · async queue · batch INSERT · logging estructurado | ✅ |
+| 9 | Manual PyME + arquitectura + API ref + presentación + prompt video | ✅ |
 
-**Tests:** 58/58 pytest pass.
+**Tests:** 115/115 pytest pass.
+**Imagen Docker:** `ghcr.io/silvaisaac148/sdai-sensor:0.1.0`
+**Docs entrega:** [`MANUAL_INSTALACION.md`](./MANUAL_INSTALACION.md) · [`API_REFERENCE.md`](./API_REFERENCE.md) · [`PRESENTACION.md`](./PRESENTACION.md) · [`GEMINI_VIDEO_PROMPT.md`](./GEMINI_VIDEO_PROMPT.md)
 
 ---
 
@@ -250,10 +252,12 @@ proyecto_franklin/
 
 ## Roadmap
 
-- **Sprint 7-8** — sniff thread + `asyncio.Queue` + batch INSERT cada N pkts + rate-limit notifications + structured logging
-- **Sprint 9** — manual PyME paso a paso (no técnico), video demo 5-7 min, presentación académica
-
-Detalles en [`IDEAS_FUTURAS.md`](./IDEAS_FUTURAS.md).
+Todos los sprints planificados (1-9) están **completados**. Roadmap post-MVP en [`IDEAS_FUTURAS.md`](./IDEAS_FUTURAS.md):
+- Modo IPS (bloqueo iptables auto-generado a partir de alertas)
+- Anomaly detection con ML (Isolation Forest sobre baseline 7 días)
+- Integración threat intelligence feeds (AbuseIPDB, Spamhaus)
+- App móvil nativa (Flutter)
+- Multi-tenant SaaS
 
 ---
 

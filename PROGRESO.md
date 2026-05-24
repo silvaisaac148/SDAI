@@ -235,8 +235,25 @@ python scripts/load_test.py --rate 167 --duration 60 --concurrency 50
 
 ---
 
-### Sprint 9 — Documentación + entrega
-- Manual instalación PyME (paso a paso, no técnico)
-- Documentación arquitectura + APIs
-- Video demo 5-7 min (simulación ataque + detección + alerta)
-- Presentación académica
+## Sprint 9 — Documentación + entrega — COMPLETADO ✅
+**Fecha:** 2026-05-24
+
+### Entregables verificados
+
+| Componente | Estado | Archivo |
+|------------|--------|---------|
+| Manual instalación PyME + aprendices | ✅ | `MANUAL_INSTALACION.md` — 18 secciones, Docker GHCR + Linux código + Windows código, Supabase, Telegram bot, Gmail App Password, glosario no técnico, troubleshooting, FAQ |
+| API Reference completa | ✅ | `API_REFERENCE.md` — todos los routers, schemas, query params, ejemplos cURL, códigos HTTP, generación cliente |
+| Arquitectura técnica | ✅ | `ARCHITECTURE.md` (preexistente, expandido durante sprints 3-6) |
+| Presentación académica | ✅ | `PRESENTACION.md` — 15 slides outline + speaker notes + Q&A anticipadas + tips producción Canva/PowerPoint |
+| Prompt video demo Gemini Veo | ✅ | `GEMINI_VIDEO_PROMPT.md` — 40+ escenas de 8s, voiceover por sección, workflow producción completo, tips Veo |
+
+### Distribución final
+- Imagen Docker publicada: `ghcr.io/silvaisaac148/sdai-sensor:0.1.0`
+- Repositorio público: https://github.com/silvaisaac148/SDAI
+- Cualquier máquina con Docker: `docker pull` + `.env` + `docker compose up -d`
+
+### Pendiente fuera de Sprint 9 (entrega humana)
+- Grabar el video con Gemini Veo + screen recordings reales (ver `GEMINI_VIDEO_PROMPT.md`)
+- Convertir `PRESENTACION.md` a slides reales (Canva / PowerPoint / Keynote)
+- Defensa oral académica
