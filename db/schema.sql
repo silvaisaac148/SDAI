@@ -55,32 +55,73 @@ INSERT INTO configurations (key, value) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- ============================================================
--- Row Level Security policies (Sprint 1-2: dev mode permisivo)
--- En producción restringir con auth.uid() / service_role
+-- Sprint 7-8: Usuarios analistas (sesión por cookie HMAC firmada)
+-- Contraseñas guardadas con bcrypt ($2b$...). Nunca en texto plano.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS users (
+  id              BIGSERIAL PRIMARY KEY,
+  username        TEXT UNIQUE NOT NULL,
+  password_hash   TEXT NOT NULL,
+  role            TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin','viewer')),
+  active          BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_login_at   TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- Login flow runs server-side with service role, so no anon policies are exposed.
+
+-- ============================================================
+-- Row Level Security
+-- Production posture: only the service_role key (used by the FastAPI backend)
+-- can read/write. The anon key — typically exposed to browsers — gets nothing.
+-- For dev convenience the legacy anon policies are dropped explicitly so
+-- re-running this script on an old DB tightens it instead of staying permissive.
 -- ============================================================
 
 ALTER TABLE events          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE alerts          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configurations  ENABLE ROW LEVEL SECURITY;
 
--- events: anon puede leer + insertar (sniffer registra)
-DROP POLICY IF EXISTS "anon_read_events"   ON events;
-DROP POLICY IF EXISTS "anon_write_events"  ON events;
-CREATE POLICY "anon_read_events"  ON events  FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_write_events" ON events  FOR INSERT TO anon WITH CHECK (true);
-
--- alerts: anon puede leer + insertar + actualizar (notified flag)
-DROP POLICY IF EXISTS "anon_read_alerts"   ON alerts;
-DROP POLICY IF EXISTS "anon_write_alerts"  ON alerts;
-DROP POLICY IF EXISTS "anon_update_alerts" ON alerts;
-CREATE POLICY "anon_read_alerts"   ON alerts FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_write_alerts"  ON alerts FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "anon_update_alerts" ON alerts FOR UPDATE TO anon USING (true);
-
--- configurations: anon lee + upsert
-DROP POLICY IF EXISTS "anon_read_configs"  ON configurations;
-DROP POLICY IF EXISTS "anon_write_configs" ON configurations;
+-- Drop any pre-existing permissive anon policies (idempotent migration)
+DROP POLICY IF EXISTS "anon_read_events"    ON events;
+DROP POLICY IF EXISTS "anon_write_events"   ON events;
+DROP POLICY IF EXISTS "anon_read_alerts"    ON alerts;
+DROP POLICY IF EXISTS "anon_write_alerts"   ON alerts;
+DROP POLICY IF EXISTS "anon_update_alerts"  ON alerts;
+DROP POLICY IF EXISTS "anon_read_configs"   ON configurations;
+DROP POLICY IF EXISTS "anon_write_configs"  ON configurations;
 DROP POLICY IF EXISTS "anon_update_configs" ON configurations;
-CREATE POLICY "anon_read_configs"   ON configurations FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_write_configs"  ON configurations FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "anon_update_configs" ON configurations FOR UPDATE TO anon USING (true);
+
+-- events: only service_role (backend) reads + inserts
+DROP POLICY IF EXISTS "svc_all_events" ON events;
+CREATE POLICY "svc_all_events" ON events
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- alerts: only service_role
+DROP POLICY IF EXISTS "svc_all_alerts" ON alerts;
+CREATE POLICY "svc_all_alerts" ON alerts
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- configurations: only service_role
+DROP POLICY IF EXISTS "svc_all_configs" ON configurations;
+CREATE POLICY "svc_all_configs" ON configurations
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- users: only service_role (passwords never leave the server)
+DROP POLICY IF EXISTS "svc_all_users" ON users;
+CREATE POLICY "svc_all_users" ON users
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- ============================================================
+-- Dev-mode override (OPTIONAL):
+--   If you must use the anon key locally (no service_role configured), uncomment
+--   the block below. NEVER leave this enabled in production — it makes the API
+--   key shipped to the browser able to read all alerts/events.
+--
+-- CREATE POLICY "anon_dev_events"  ON events          FOR ALL TO anon USING (true) WITH CHECK (true);
+-- CREATE POLICY "anon_dev_alerts"  ON alerts          FOR ALL TO anon USING (true) WITH CHECK (true);
+-- CREATE POLICY "anon_dev_configs" ON configurations  FOR ALL TO anon USING (true) WITH CHECK (true);
+-- ============================================================

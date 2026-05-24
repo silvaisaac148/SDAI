@@ -2,51 +2,109 @@ import csv
 import io
 import sys
 from typing import List, Optional
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from fastapi.responses import StreamingResponse
+from app.routers.auth import get_current_user
+from app.utils.rate_limiter import ingest_rate_limiter
 
 from app.db.supabase_client import get_client, execute_with_retry
-from app.services import state_manager
+from app.services import state_manager, batch_writer
 from app.routers.live import broadcast_packet
+from app.utils.logger import logger
 
 router = APIRouter(prefix="/events", tags=["events"])
 
 
-@router.post("/ingest", status_code=201)
+
+@router.post("/ingest", status_code=201, dependencies=[Depends(ingest_rate_limiter)])
 async def ingest_event(pkt: dict):
-    """Receive packet from sniffer, save to Supabase, run detectors, and broadcast live."""
+    """Receive packet from sniffer, save to Supabase via batch queue or direct write, run detectors, and broadcast."""
     client = get_client()
+    
+    # 1. Run detection engine in-memory only (without immediate DB writes or notifications)
+    triggered_alerts = state_manager.process_packet(pkt, event_id=None, db_insert=False)
+    
     event_id = None
+    row = {
+        "timestamp": pkt.get("timestamp"),
+        "src_ip": pkt.get("src_ip"),
+        "dst_ip": pkt.get("dst_ip"),
+        "protocol": pkt.get("protocol"),
+        "src_port": pkt.get("src_port"),
+        "dst_port": pkt.get("dst_port"),
+        "flags": pkt.get("flags"),
+        "length": pkt.get("length"),
+        "raw_data": pkt,
+    }
 
-    if client is not None:
-        try:
-            row = {
-                "timestamp": pkt.get("timestamp"),
-                "src_ip": pkt.get("src_ip"),
-                "dst_ip": pkt.get("dst_ip"),
-                "protocol": pkt.get("protocol"),
-                "src_port": pkt.get("src_port"),
-                "dst_port": pkt.get("dst_port"),
-                "flags": pkt.get("flags"),
-                "length": pkt.get("length"),
-                "raw_data": pkt,
-            }
-            res = execute_with_retry(lambda c: c.table("events").insert(row))
-            if res.data:
-                event_id = res.data[0]["id"]
-        except Exception as e:
-            print(f"[events] Error saving event to Supabase: {e}", file=sys.stderr)
+    if not triggered_alerts:
+        # Flow A: Normal traffic (99.9%). Queue for background batch insert.
+        if client is not None:
+            await batch_writer.enqueue(row)
+        
+        # Broadcast immediately to keep UI ultra responsive
+        event_payload = {**pkt, "id": None}
+        live_msg = {"event": event_payload, "alerts": []}
+        await broadcast_packet(live_msg)
+        
+        return {"status": "ok", "event_id": None, "alerts_triggered": 0}
+        
+    else:
+        # Flow B: Threat detected! Insert event immediately to get database event_id.
+        if client is not None:
+            try:
+                res = execute_with_retry(lambda c: c.table("events").insert(row))
+                if res.data:
+                    event_id = res.data[0]["id"]
+            except Exception as e:
+                logger.error(f"Error saving threat event to Supabase: {e}", exc_info=True)
 
-    # Run detection engine — auto-persists triggered alerts to Supabase
-    triggered_alerts = state_manager.process_packet(pkt, event_id=event_id)
+        # Update alerts with real event_id and save them to DB
+        saved_alerts = []
+        for alert in triggered_alerts:
+            alert["event_id"] = event_id
+            
+            if client is not None and event_id is not None:
+                try:
+                    payload = {
+                        "event_id": event_id,
+                        "threat_type": alert["threat_type"],
+                        "severity": alert["severity"],
+                        "description": alert["description"],
+                        "notified": False,
+                        "country": alert.get("country"),
+                        "city": alert.get("city"),
+                        "latitude": alert.get("latitude"),
+                        "longitude": alert.get("longitude"),
+                    }
+                    res_alert = execute_with_retry(lambda c: c.table("alerts").insert(payload))
+                    if res_alert.data:
+                        alert["id"] = res_alert.data[0].get("id")
+                        alert["created_at"] = res_alert.data[0].get("created_at", alert["created_at"])
+                except Exception as e:
+                    logger.error(f"Error inserting associated alert to Supabase: {e}", exc_info=True)
+            
+            saved_alerts.append(alert)
+            logger.info(
+                f"🚨 [ALERTA] {alert['threat_type'].upper()} | {alert['description']} | Ubicación: {alert.get('city')}, {alert.get('country')}",
+                extra={"threat_type": alert["threat_type"], "severity": alert["severity"], "city": alert.get("city"), "country": alert.get("country")}
+            )
 
-    # Always broadcast the original packet dict, just enriched with the persisted id.
-    event_payload = {**pkt, "id": event_id}
-    live_msg = {"event": event_payload, "alerts": triggered_alerts}
+            # Trigger active notifications asynchronously per severity policy
+            try:
+                from app.notifications import notify_alert
+                notify_alert(alert)
+            except Exception as ne:
+                logger.error(f"Alert notification dispatch failed: {ne}")
 
-    await broadcast_packet(live_msg)
 
-    return {"status": "ok", "event_id": event_id, "alerts_triggered": len(triggered_alerts)}
+        # Broadcast enriched packet + triggered alerts
+        event_payload = {**pkt, "id": event_id}
+        live_msg = {"event": event_payload, "alerts": saved_alerts}
+        await broadcast_packet(live_msg)
+
+        return {"status": "ok", "event_id": event_id, "alerts_triggered": len(saved_alerts)}
+
 
 
 def _events_query(limit, offset, protocol, src_ip, since):
@@ -62,7 +120,7 @@ def _events_query(limit, offset, protocol, src_ip, since):
     return build
 
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(get_current_user)])
 async def export_events_csv(
     limit: int = Query(1000, ge=1, le=10000),
     src_ip: Optional[str] = None,
@@ -96,7 +154,7 @@ async def export_events_csv(
     )
 
 
-@router.get("/investigate/{src_ip}", response_model=dict)
+@router.get("/investigate/{src_ip}", response_model=dict, dependencies=[Depends(get_current_user)])
 async def investigate_ip(src_ip: str, limit_events: int = Query(50, ge=1, le=500)):
     """Aggregate everything we know about a source IP for the 'Investigar' modal."""
     client = get_client()
@@ -157,7 +215,7 @@ async def investigate_ip(src_ip: str, limit_events: int = Query(50, ge=1, le=500
     }
 
 
-@router.get("", response_model=List[dict])
+@router.get("", response_model=List[dict], dependencies=[Depends(get_current_user)])
 async def list_events(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),

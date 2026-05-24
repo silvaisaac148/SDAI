@@ -11,8 +11,10 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.append(str(BACKEND_DIR))
 
 from app.db.supabase_client import get_client, execute_with_retry
+from app.utils.logger import logger
 from capture.detectors import check_port_scan, check_brute_force, check_malicious_ip, check_dos
 from capture.geoip_resolver import GeoIPResolver
+
 
 try:
     from app.notifications import notify_alert as _notify_alert
@@ -72,14 +74,16 @@ class DetectionStateManager:
                     val = r["value"]
                     self.configs[key] = val
         except Exception as e:
-            print(f"[state] Warning: failed to refresh configs from Supabase: {e}", file=sys.stderr)
+            logger.warning(f"Failed to refresh configs from Supabase: {e}")
 
-    def process_packet(self, pkt_dict: dict, event_id: Optional[int] = None) -> List[dict]:
+
+    def process_packet(self, pkt_dict: dict, event_id: Optional[int] = None, db_insert: bool = True) -> List[dict]:
         """Process a decoded packet dictionary, run all detectors, and return triggered alerts.
 
         Args:
             pkt_dict: The normalized packet dictionary.
             event_id: The ID of the saved event in the events table.
+            db_insert: If True, immediately inserts alerts to the database and notifies.
         """
         self._refresh_configs_if_needed()
 
@@ -151,35 +155,43 @@ class DetectionStateManager:
             geo_info = self.geoip.resolve_ip(src_ip)
             alert_dict.update(geo_info)
 
-            # Insert alert to database — capture returned row to get real id
-            client = get_client()
-            if client is not None:
-                try:
-                    payload = {
-                        "event_id": event_id,
-                        "threat_type": threat_type,
-                        "severity": alert_dict["severity"],
-                        "description": alert_dict["description"],
-                        "notified": False,
-                        "country": geo_info["country"],
-                        "city": geo_info["city"],
-                        "latitude": geo_info["latitude"],
-                        "longitude": geo_info["longitude"],
-                    }
-                    res = execute_with_retry(lambda c: c.table("alerts").insert(payload))
-                    if res.data:
-                        alert_dict["id"] = res.data[0].get("id")
-                        alert_dict["created_at"] = res.data[0].get("created_at", alert_dict["created_at"])
-                except Exception as e:
-                    print(f"[state] Error inserting alert to Supabase: {e}", file=sys.stderr)
+            if db_insert:
+                # Insert alert to database — capture returned row to get real id
+                client = get_client()
+                if client is not None:
+                    try:
+                        payload = {
+                            "event_id": event_id,
+                            "threat_type": threat_type,
+                            "severity": alert_dict["severity"],
+                            "description": alert_dict["description"],
+                            "notified": False,
+                            "country": geo_info["country"],
+                            "city": geo_info["city"],
+                            "latitude": geo_info["latitude"],
+                            "longitude": geo_info["longitude"],
+                        }
+                        res = execute_with_retry(lambda c: c.table("alerts").insert(payload))
+                        if res.data:
+                            alert_dict["id"] = res.data[0].get("id")
+                            alert_dict["created_at"] = res.data[0].get("created_at", alert_dict["created_at"])
+                    except Exception as e:
+                        logger.error(f"Error inserting alert to Supabase: {e}", exc_info=True)
 
-            saved_alerts.append(alert_dict)
-            print(f"🚨 [ALERTA] {threat_type.upper()} | {alert_dict['description']} | Ubicación: {geo_info['city']}, {geo_info['country']}", file=sys.stderr)
+                saved_alerts.append(alert_dict)
+                logger.info(
+                    f"🚨 [ALERTA] {threat_type.upper()} | {alert_dict['description']} | Ubicación: {geo_info['city']}, {geo_info['country']}",
+                    extra={"threat_type": threat_type, "severity": alert_dict["severity"], "city": geo_info["city"], "country": geo_info["country"]}
+                )
 
-            # Fan-out async notifications (Telegram/Email) per severity policy
-            _notify_alert(alert_dict)
+                # Fan-out async notifications (Telegram/Email) per severity policy
+                _notify_alert(alert_dict)
+
+            else:
+                saved_alerts.append(alert_dict)
 
         return saved_alerts
+
 
     def current_pps(self, window_seconds: float = 1.0) -> int:
         """Return packets observed in the most recent N seconds (system-wide PPS)."""

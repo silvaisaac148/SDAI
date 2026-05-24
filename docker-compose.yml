@@ -1,0 +1,57 @@
+version: '3.8'
+
+# SDAI · stack productivo de un sensor
+#
+#   docker compose up -d        ← arranca backend + sniffer
+#   docker compose logs -f       ← sigue logs
+#   docker compose exec sdai-sensor python scripts/create_user.py
+#
+# El sniffer Scapy necesita acceso al stack de red del host. Usamos
+# network_mode: host (Linux). En Windows/macOS Docker no soporta host networking,
+# así que en esos casos comenta la línea y mapea 8000:8000 → port_mapping.
+
+services:
+  sdai-sensor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sdai/sensor:0.1.0
+    container_name: sdai_sensor
+
+    restart: unless-stopped
+
+    # CRÍTICO (solo Linux host): permite que Scapy vea la NIC física.
+    network_mode: "host"
+
+    # Capacidades kernel necesarias para sniffer + bloqueo iptables.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    # .env del host se inyecta como archivo (no se hornea en la imagen).
+    env_file:
+      - .env
+
+    # Overrides defensivos: forzamos bind 0.0.0.0 dentro del contenedor.
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_FORMAT=json
+      - LOG_LEVEL=INFO
+
+    # Persistir GeoLite2 DB si la usuario la baja con scripts/download_geoip.py.
+    volumes:
+      - ./db:/app/db:rw
+
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+      start_period: 10s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

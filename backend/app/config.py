@@ -32,7 +32,21 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_SENDER: str = ""
     SMTP_USE_TLS: bool = True
-    EMAIL_RECIPIENTS: str = ""  # comma-separated
+    # Comma-separated list of recipients for SMTP alerts
+    EMAIL_RECIPIENTS: str = ""
+    # IA Defensiva y Educativa — Google Gemini API
+    GEMINI_API_KEY: str = ""
+    # IA Defensiva y Educativa — Groq API (openai-compatible)
+    GROQ_API_KEY: str = ""
+
+    # Seguridad y Autenticación del Analista (sin JWT, sesión por Cookies HMAC)
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "admin123"
+    SESSION_SECRET_KEY: str = "sdai_super_secret_session_key_99"
+    # Set True behind HTTPS in production so cookies are only sent over TLS.
+    SESSION_COOKIE_SECURE: bool = False
+    # CORS — comma-separated origins. Defaults wide-open for local dev only.
+    CORS_ALLOWED_ORIGINS: str = "*"
 
 
 settings = Settings()

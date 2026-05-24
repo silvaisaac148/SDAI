@@ -1,4 +1,7 @@
 import sys
+import os
+import platform
+import ctypes
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
@@ -104,6 +107,17 @@ async def get_uptime():
     }
 
 
+def _has_admin_privileges() -> bool:
+    """Check if the FastAPI process is running with Administrative/Root privileges."""
+    try:
+        if platform.system() == "Windows":
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        else:
+            return os.getuid() == 0
+    except Exception:
+        return False
+
+
 @router.get("/sensor", response_model=dict)
 async def get_sensor_info():
     """Static sensor / tenant metadata + notification channel availability."""
@@ -115,6 +129,7 @@ async def get_sensor_info():
         "started_at": state_manager.started_at.isoformat(),
         "uptime_seconds": state_manager.uptime_seconds(),
         "supabase_connected": get_client() is not None,
+        "has_admin_privileges": _has_admin_privileges(),
         "notifications": {
             "telegram": dispatcher.telegram_enabled(),
             "email": dispatcher.email_enabled(),

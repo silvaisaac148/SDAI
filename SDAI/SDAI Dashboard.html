@@ -350,6 +350,14 @@
       <button id="btnExport" class="icon-btn" title="Exportar reporte CSV">
         <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       </button>
+      <button id="btnAcademy" class="icon-btn" title="Asistente de Ciberseguridad con IA (Copilot)" style="color: var(--info); border-color: rgba(79,184,255,.3);">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3-1.912 5.886L4.2 10.8 10.088 12.71 12 18.6l1.912-5.89 5.888-1.91-5.888-1.91Z"/>
+          <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5z"/>
+          <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"/>
+        </svg>
+      </button>
+
       <button id="btnSettings" class="icon-btn" title="Ajustes">
         <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
       </button>
@@ -828,12 +836,77 @@
       </div>
       <input type="range" class="sdai" id="sSetBuf" min="50" max="1000" step="50" value="300"/>
     </div>
+    <div>
+      <div class="flex items-baseline justify-between mb-1">
+        <label class="text-[12px] font-medium">Interfaz de Red (para Captura)</label>
+        <span class="font-mono text-[11px] text-[color:var(--text-mute)]" id="lblSelectedInterface">Wi-Fi</span>
+      </div>
+      <select id="selectInterface" class="w-full glass bg-[#07090f] text-white text-[12px] px-3 py-2 rounded border border-[color:var(--line)] focus:outline-none focus:border-[color:var(--info)] cursor-pointer">
+        <option value="">Cargando interfaces...</option>
+      </select>
+    </div>
     <div class="flex items-center gap-2 pt-2 border-t border-[color:var(--line)]">
       <a href="/docs" target="_blank" class="btn btn-ghost flex-1 justify-center">Abrir Swagger /docs</a>
       <button id="setReset" class="btn flex-1 justify-center" style="border-color: rgba(255,56,96,.35); color:#FFB0C9;">Reiniciar sensor</button>
     </div>
   </div>
 </div>
+
+<!-- =================== COPIILOT DE IA / ASISTENTE SIDEBAR =================== -->
+<div id="academyBackdrop" class="hidden fixed inset-0 z-[55]" style="background: rgba(7,9,15,.45); backdrop-filter: blur(2px);"></div>
+<div id="academyModal" class="drawer hidden flex flex-col z-[56]">
+  <!-- Header -->
+  <div class="px-5 py-4 border-b border-[color:var(--line)] flex items-center gap-3">
+    <div class="w-8 h-8 rounded-md flex items-center justify-center" style="background: rgba(79,184,255,.10); border: 1px solid rgba(79,184,255,.3);">
+      <svg viewBox="0 0 24 24" class="w-4 h-4 text-[color:var(--info)]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m12 3-1.912 5.886L4.2 10.8 10.088 12.71 12 18.6l1.912-5.89 5.888-1.91-5.888-1.91Z"/>
+      </svg>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="font-display text-[15px] font-semibold leading-tight text-white">Asistente de IA (SDAI Copilot)</div>
+      <div class="text-[11px] font-mono text-[color:var(--text-mute)] truncate">Soporte didáctico de red para analistas e IT</div>
+    </div>
+    <button id="academyClose" class="icon-btn"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6 18 18M18 6 6 18"/></svg></button>
+  </div>
+
+  <!-- Body (Dedicated Chat Interface) -->
+  <div class="flex-1 flex flex-col overflow-hidden text-[12px] bg-[rgba(7,9,15,.25)]">
+    <!-- Chat Feed Area -->
+    <div id="academyChatArea" class="flex-1 overflow-y-auto p-5 space-y-4 flex flex-col scrollbar-thin">
+      <!-- Initial Tutor Message -->
+      <div class="self-start max-w-[85%] rounded-lg p-3 glass-tight text-white border border-blue-900/10">
+        <div class="font-semibold text-[10px] text-[color:var(--info)] mb-1">🤖 COPILOT IA</div>
+        <p class="leading-relaxed text-[11px]">¡Hola! Soy tu <strong>Copilot de Ciberseguridad con IA</strong>.
+        Estoy aquí para ayudarte a interpretar el tráfico de la red local, explicar los conceptos de red (TCP, UDP, ICMP), y recomendar planes didácticos de mitigación y defensa activa ante alertas.
+        <br><br>
+        ¿Qué concepto o evento del panel te gustaría analizar hoy?</p>
+      </div>
+    </div>
+
+    <!-- Quick Suggestions Pill Area -->
+    <div class="px-4 py-2 bg-[rgba(7,9,15,.4)] border-t border-[color:var(--line)] flex flex-wrap gap-1.5 shrink-0">
+      <button class="px-2 py-1 bg-[rgba(148,163,184,.05)] hover:bg-[rgba(148,163,184,.1)] text-[color:var(--text-dim)] border border-[color:var(--line)] rounded text-[10px] transition quick-prompt-btn" data-prompt="¿Cómo funciona el escaneo de puertos?">🔍 Escaneo</button>
+      <button class="px-2 py-1 bg-[rgba(148,163,184,.05)] hover:bg-[rgba(148,163,184,.1)] text-[color:var(--text-dim)] border border-[color:var(--line)] rounded text-[10px] transition quick-prompt-btn" data-prompt="Explica el ataque DoS con una analogía simple">🌊 DoS</button>
+      <button class="px-2 py-1 bg-[rgba(148,163,184,.05)] hover:bg-[rgba(148,163,184,.1)] text-[color:var(--text-dim)] border border-[color:var(--line)] rounded text-[10px] transition quick-prompt-btn" data-prompt="¿Qué ventajas tiene el adaptador AC1300 en modo monitor?">📡 AC1300</button>
+      <button class="px-2 py-1 bg-[rgba(148,163,184,.05)] hover:bg-[rgba(148,163,184,.1)] text-[color:var(--text-dim)] border border-[color:var(--line)] rounded text-[10px] transition quick-prompt-btn" data-prompt="¿Por qué bloquear a nivel de kernel/firewall ayuda al procesador?">🛡️ Firewall</button>
+    </div>
+
+    <!-- Input Area -->
+    <div class="p-3 border-t border-[color:var(--line)] bg-[rgba(7,9,15,.4)] flex flex-col gap-2 shrink-0">
+      <div class="flex gap-2">
+        <input type="text" id="academyChatInput" placeholder="Haz una pregunta sobre el tráfico, puertos o alertas..." class="flex-1 glass bg-[#07090f] text-white px-3 py-2.5 text-[11px] rounded border border-[color:var(--line)] focus:outline-none focus:border-[color:var(--info)]" autocomplete="off" />
+        <button id="btnAcademySend" class="btn btn-primary px-4 py-2 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+        </button>
+      </div>
+      <div class="flex items-center justify-between text-[9px] font-mono text-[color:var(--text-mute)] px-1">
+        <span>⚡ Groq Llama-3.3 Activo</span>
+        <button id="academyResetChat" class="hover:text-white transition uppercase">Borrar Historial</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <!-- =================== PROFILE DROPDOWN =================== -->
 <div id="profileMenu" class="hidden absolute right-6 top-[64px] z-[55] glass p-1 w-[260px]">
@@ -850,8 +923,14 @@
     <a href="/docs" target="_blank" class="block px-3 py-2 hover:bg-[rgba(148,163,184,.06)] rounded">📡 API Swagger</a>
     <button id="pmReset" class="block w-full text-left px-3 py-2 hover:bg-[rgba(255,56,96,.08)] rounded text-[#FFB0C9]">↻ Reiniciar sensor</button>
     <button id="pmCopy" class="block w-full text-left px-3 py-2 hover:bg-[rgba(148,163,184,.06)] rounded">📋 Copiar URL dashboard</button>
+    <button id="pmLogout" class="block w-full text-left px-3 py-2 hover:bg-[rgba(255,56,96,.08)] rounded text-[#FFB0C9]">🚪 Cerrar Sesión</button>
   </div>
 </div>
+
+<!-- Login overlay removed — authentication now lives in /login (server-gated).
+     If the cookie expires while the dashboard is open the global fetch wrapper
+     issues a hard redirect to /login. No inline form needed here. -->
+
 
 <script>
 /* =====================================================
@@ -862,6 +941,26 @@ const $$ = (s, el=document) => [...el.querySelectorAll(s)];
 
 const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
 let DEMO_MODE = false;
+
+// Global fetch wrapper: if the backend returns 401 anywhere we treat the session
+// as expired and bounce to the standalone /login screen. /auth/* endpoints are
+// excluded so the login + session-probe flow can surface their own errors.
+(function installAuthAwareFetch(){
+  const origFetch = window.fetch.bind(window);
+  let redirecting = false;
+  window.fetch = async function(input, init) {
+    const res = await origFetch(input, init);
+    try {
+      const url = (typeof input === 'string') ? input : (input && input.url) || '';
+      const isAuthPath = /\/auth\/(login|logout|session)/.test(url);
+      if (res.status === 401 && !isAuthPath && !DEMO_MODE && !redirecting) {
+        redirecting = true;
+        window.location.replace('/login');
+      }
+    } catch (_) {}
+    return res;
+  };
+})();
 
 const STATE = {
   config: { port: 20, brute: 8, dos: 1200, rate: 450 },
@@ -965,7 +1064,11 @@ function renderPacketRow(p, animate=true){
   if (STATE.autoScroll) {
     pktScroll.scrollTop = pktScroll.scrollHeight;
   }
-  applyFilter();
+  
+  // Optimización O(1): Aplicar el filtro de protocolo directamente a la fila recién creada,
+  // evitando escanear y recorrer los 300 elementos del DOM con querySelectorAll cada vez.
+  const f = STATE.filter;
+  row.style.display = (f === 'all' || p.proto === f) ? '' : 'none';
 }
 function updatePacketStats(){
   $('#statTotal').textContent = STATE.stats.total.toLocaleString();
@@ -1423,121 +1526,327 @@ function pulseHeartbeat(){
 setInterval(pulseHeartbeat, 350);
 
 /* -------- Topology graph -------- */
+function isPrivateIP(ip) {
+  if (!ip) return false;
+  if (ip === 'gateway' || ip === 'localhost' || ip === '127.0.0.1') return true;
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(isNaN)) return false;
+  if (parts[0] === 10) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  return false;
+}
+
 function renderTopology(topSources){
   const svg = $('#topoSvg');
   if (!svg) return;
-  svg.innerHTML = '';
-  const cx = 260, cy = 140;
-
-  const defaultSources = [
-    { ip: '192.168.1.10', count: 120 },
-    { ip: '192.168.1.45', count: 80 },
-    { ip: '10.0.0.12', count: 45 },
-    { ip: '10.0.0.55', count: 32 },
-    { ip: '172.16.4.21', count: 18 },
-    { ip: '192.168.1.23', count: 12 }
-  ];
-
-  const activeSources = (topSources && topSources.length > 0) ? topSources : defaultSources;
   
-  const hosts = [
-    { id: 'gw', label: 'FW / SDAI', ip: 'gateway', x: cx, y: cy, status: 'core', size: 30 }
-  ];
+  const cx = 260, cy = 140;
+  const laptopIp = STATE.interfaceIp || '192.168.1.209';
+  const gatewayIp = '192.168.1.1';
 
-  const angles = [-150, -100, -50, 0, 50, 100, 150, -180];
-  activeSources.forEach((src, index) => {
-    if (index >= angles.length) return;
-    
+  // 1. Clasificar fuentes en locales y externas
+  let localSources = [];
+  let externalSources = [];
+  
+  if (topSources && topSources.length > 0) {
+    topSources.forEach(src => {
+      if (isPrivateIP(src.ip)) {
+        if (src.ip !== gatewayIp) {
+          localSources.push(src);
+        }
+      } else {
+        externalSources.push(src);
+      }
+    });
+  }
+
+  // 2. Determinar estado de alerta para cada IP
+  function getIpStatus(ip) {
     let status = 'ok';
-    const alertsForIp = STATE.alerts.filter(a => a.src === src.ip);
-    if (alertsForIp.some(a => a.sev === 'high')) {
+    if (!STATE.alerts || STATE.alerts.length === 0) return status;
+    const ipAlerts = STATE.alerts.filter(a => a.src === ip);
+    if (ipAlerts.some(a => a.sev === 'high' || a.sev === 'crit')) {
       status = 'crit';
-    } else if (alertsForIp.some(a => a.sev === 'med')) {
+    } else if (ipAlerts.some(a => a.sev === 'med' || a.sev === 'warn')) {
       status = 'warn';
     }
+    return status;
+  }
 
-    let label = `HOST-${index+1}`;
-    if (src.ip.startsWith('192.168.1.10')) label = 'PC-SEC';
-    else if (src.ip.startsWith('10.0.0.12')) label = 'SRV-DB';
-    else if (src.ip.startsWith('10.0.0.55')) label = 'SRV-WEB';
-    else if (src.ip.startsWith('172.16.')) label = 'NAS-BACKUP';
-
-    hosts.push({
-      id: `h${index+1}`,
-      label: label,
-      ip: src.ip,
-      status: status,
-      angle: angles[index],
-      count: src.count
-    });
-  });
-
-  const radius = 110;
-  hosts.forEach(h => {
-    if (h.id !== 'gw') {
-      const rad = (h.angle * Math.PI)/180;
-      h.x = cx + Math.cos(rad) * radius;
-      h.y = cy + Math.sin(rad) * radius * 0.85;
+  // 3. Estructurar la red local nominal/dinámica (LAN)
+  // Definimos posiciones fijas y estéticas en estrella alrededor del Core
+  const lanNodes = [
+    {
+      id: 'laptop',
+      label: 'MI LAPTOP (SDAI)',
+      ip: laptopIp,
+      x: cx + 110,
+      y: cy,
+      isSensor: true,
+      status: 'ok'
+    },
+    {
+      id: 'pc_sec',
+      label: 'PC-SEC (LAN)',
+      ip: '192.168.1.10',
+      x: cx + 80,
+      y: cy - 75,
+      status: 'ok'
+    },
+    {
+      id: 'srv_db',
+      label: 'SRV-DB (LAN)',
+      ip: '192.168.1.12',
+      x: cx + 80,
+      y: cy + 75,
+      status: 'ok'
+    },
+    {
+      id: 'srv_web',
+      label: 'SRV-WEB (LAN)',
+      ip: '192.168.1.55',
+      x: cx,
+      y: cy + 85,
+      status: 'ok'
+    },
+    {
+      id: 'pc_movil',
+      label: 'PC-MOVIL (LAN)',
+      ip: '192.168.1.15',
+      x: cx,
+      y: cy - 85,
+      status: 'ok'
     }
+  ];
+
+  // Si tenemos fuentes locales activas de la captura real, reemplazamos IPs para que coincidan con la red real
+  if (localSources.length > 0) {
+    let assignedCount = 0;
+    localSources.forEach(src => {
+      if (src.ip !== laptopIp) {
+        if (assignedCount === 0) {
+          lanNodes[4].ip = src.ip; // PC-MOVIL
+          lanNodes[4].label = 'PC-MOVIL (Real)';
+          assignedCount++;
+        } else if (assignedCount === 1) {
+          lanNodes[1].ip = src.ip; // PC-SEC
+          lanNodes[1].label = 'HOST-SEC (Real)';
+          assignedCount++;
+        } else if (assignedCount === 2) {
+          lanNodes[2].ip = src.ip; // SRV-DB
+          lanNodes[2].label = 'HOST-DB (Real)';
+          assignedCount++;
+        }
+      }
+    });
+  }
+
+  // Evaluar estado para cada host de la LAN
+  lanNodes.forEach(node => {
+    node.status = getIpStatus(node.ip);
   });
 
-  svg.insertAdjacentHTML('beforeend', `
+  // Si hay alertas generales sin IP de origen clara, o si el sensor está recibiendo ataques, el Laptop (Sensor) se marca en alerta
+  const hasHighAlerts = STATE.alerts && STATE.alerts.some(a => a.sev === 'high' || a.sev === 'crit');
+  const hasMedAlerts = STATE.alerts && STATE.alerts.some(a => a.sev === 'med' || a.sev === 'warn');
+  
+  if (hasHighAlerts) {
+    lanNodes[0].status = 'crit'; // Laptop comprometida/bajo ataque
+  } else if (hasMedAlerts && lanNodes[0].status === 'ok') {
+    lanNodes[0].status = 'warn';
+  }
+
+  // 4. Estructurar la red externa (WAN)
+  const wanCloud = {
+    id: 'wan',
+    label: 'INTERNET / WAN',
+    x: cx - 110,
+    y: cy,
+    status: 'ok'
+  };
+
+  const externalThreatNodes = [];
+  const maxExt = Math.min(3, externalSources.length);
+  
+  for (let i = 0; i < maxExt; i++) {
+    const src = externalSources[i];
+    let yPos = cy;
+    if (maxExt === 2) {
+      yPos = cy - 40 + i * 80;
+    } else if (maxExt === 3) {
+      yPos = cy - 65 + i * 65;
+    }
+    
+    externalThreatNodes.push({
+      id: `ext_${i}`,
+      label: `ATACANTE`,
+      ip: src.ip,
+      x: cx - 195,
+      y: yPos,
+      status: getIpStatus(src.ip)
+    });
+  }
+
+  if (externalThreatNodes.some(n => n.status === 'crit')) {
+    wanCloud.status = 'crit';
+  } else if (externalThreatNodes.some(n => n.status === 'warn')) {
+    wanCloud.status = 'warn';
+  }
+
+  // 5. Empezar a generar el código SVG
+  let html = `
     <defs>
       <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="#4FB8FF" stop-opacity=".8"/>
         <stop offset="100%" stop-color="#4FB8FF" stop-opacity="0"/>
       </radialGradient>
+      <radialGradient id="wanGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#A78BFA" stop-opacity=".4"/>
+        <stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/>
+      </radialGradient>
       <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="2.5" result="b"/>
-        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        <feGaussianBlur stdDeviation="3" result="b"/>
+        <feMerge>
+          <feMergeNode in="b"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
       </filter>
     </defs>
-  `);
+  `;
 
-  [60, 100, 140].forEach(r => {
-    svg.insertAdjacentHTML('beforeend',
-      `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(148,163,184,.10)" stroke-dasharray="2 4"/>`);
+  // Anillos de fondo concéntricos
+  [45, 90, 130].forEach(r => {
+    html += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(148,163,184,.06)" stroke-dasharray="3 5"/>`;
   });
 
-  hosts.filter(h => h.id !== 'gw').forEach(h => {
-    const color = h.status === 'crit' ? '#FF3860' : h.status === 'warn' ? '#FFB020' : 'rgba(79,184,255,.35)';
-    const sw = h.status === 'crit' ? 1.6 : h.status === 'warn' ? 1.2 : 0.8;
-    const dash = h.status === 'crit' ? '4 3' : '';
-    svg.insertAdjacentHTML('beforeend',
-      `<line x1="${cx}" y1="${cy}" x2="${h.x}" y2="${h.y}" stroke="${color}" stroke-width="${sw}" stroke-dasharray="${dash}" opacity=".75"/>`);
-    if (h.status === 'crit') {
-      svg.insertAdjacentHTML('beforeend', `
-        <circle r="2.5" fill="#FF3860" filter="url(#glow)">
-          <animateMotion dur="1.8s" repeatCount="indefinite"
-            path="M ${h.x} ${h.y} L ${cx} ${cy}"/>
+  // 6. Dibujar Enlaces y Animaciones de Flujo de Datos / Ataques
+
+  // A. Línea de Internet (WAN -> CORE)
+  const wanColor = wanCloud.status === 'crit' ? '#FF3860' : wanCloud.status === 'warn' ? '#FFB020' : 'rgba(167,139,250,.4)';
+  const wanWidth = wanCloud.status === 'crit' ? 2.5 : 1.2;
+  html += `<line x1="${wanCloud.x}" y1="${wanCloud.y}" x2="${cx}" y2="${cy}" stroke="${wanColor}" stroke-width="${wanWidth}" opacity=".75"/>`;
+
+  // B. Enlaces de Atacantes Externos a la Nube WAN
+  externalThreatNodes.forEach(node => {
+    const color = node.status === 'crit' ? '#FF3860' : node.status === 'warn' ? '#FFB020' : '#4FB8FF';
+    html += `<line x1="${node.x}" y1="${node.y}" x2="${wanCloud.x}" y2="${wanCloud.y}" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2" opacity=".6"/>`;
+  });
+
+  // C. Enlaces de la red interna (CORE -> LAN Nodes)
+  lanNodes.forEach(node => {
+    const isAttacking = node.status === 'crit' || node.status === 'warn';
+    const color = node.status === 'crit' ? '#FF3860' : node.status === 'warn' ? '#FFB020' : 'rgba(79,184,255,.35)';
+    const width = isAttacking ? 2.0 : 1.0;
+    const dash = isAttacking ? '4 3' : '';
+    html += `<line x1="${cx}" y1="${cy}" x2="${node.x}" y2="${node.y}" stroke="${color}" stroke-width="${width}" stroke-dasharray="${dash}" opacity=".7"/>`;
+  });
+
+  // D. Animaciones de Ataque Láser Pulsante
+  if (externalThreatNodes.some(n => n.status === 'crit')) {
+    externalThreatNodes.filter(n => n.status === 'crit').forEach((node, i) => {
+      html += `
+        <circle r="3" fill="#FF3860" filter="url(#glow)">
+          <animateMotion dur="${1.4 + i*0.2}s" repeatCount="indefinite"
+            path="M ${node.x} ${node.y} L ${wanCloud.x} ${wanCloud.y} L ${cx} ${cy} L ${lanNodes[0].x} ${lanNodes[0].y}"/>
         </circle>
-      `);
+      `;
+    });
+  }
+
+  lanNodes.forEach(node => {
+    if (node.id !== 'laptop' && node.status === 'crit') {
+      html += `
+        <circle r="3" fill="#FF3860" filter="url(#glow)">
+          <animateMotion dur="1.5s" repeatCount="indefinite"
+            path="M ${node.x} ${node.y} L ${cx} ${cy} L ${lanNodes[0].x} ${lanNodes[0].y}"/>
+        </circle>
+      `;
     }
   });
 
-  svg.insertAdjacentHTML('beforeend', `
-    <circle cx="${cx}" cy="${cy}" r="48" fill="url(#coreGrad)"/>
-    <circle cx="${cx}" cy="${cy}" r="22" fill="#0B0F19" stroke="rgba(79,184,255,.6)" stroke-width="1.2"/>
-    <text x="${cx}" y="${cy-2}"  text-anchor="middle" font-family="Outfit,Inter,sans-serif" font-size="10" font-weight="700" fill="#E5E7EB">SDAI</text>
-    <text x="${cx}" y="${cy+10}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#4FB8FF">CORE</text>
-  `);
+  // E. Animaciones de tráfico normal
+  if (!hasHighAlerts && !hasMedAlerts) {
+    lanNodes.forEach((node, i) => {
+      if (i % 2 === 0) {
+        html += `
+          <circle r="2.0" fill="#22FF99" opacity=".8">
+            <animateMotion dur="${2.5 + i*0.4}s" repeatCount="indefinite"
+              path="M ${cx} ${cy} L ${node.x} ${node.y}"/>
+          </circle>
+        `;
+      }
+    });
+  }
 
-  hosts.filter(h => h.id !== 'gw').forEach(h => {
-    const color = h.status === 'crit' ? '#FF3860' : h.status === 'warn' ? '#FFB020' : '#22FF99';
-    const r = h.status === 'crit' ? 9 : 7;
-    svg.insertAdjacentHTML('beforeend', `
+  // 7. Dibujar los Nodos / Componentes Visuales
+
+  // A. Nube WAN / Internet
+  const wanBg = wanCloud.status === 'crit' ? '#FF3860' : wanCloud.status === 'warn' ? '#FFB020' : '#A78BFA';
+  html += `
+    <g transform="translate(${wanCloud.x}, ${wanCloud.y})">
+      <circle cx="0" cy="0" r="32" fill="url(#wanGrad)"/>
+      <path d="M-12 -2 a8 8 0 0 1 14 -4 a11 11 0 0 1 14 10 a7 7 0 0 1 -4 6.5 l-20 0 a8 8 0 0 1 -4 -12.5 Z" 
+            fill="#0B0F19" stroke="${wanBg}" stroke-width="1.8" filter="url(#glow)"/>
+      <text x="0" y="16" text-anchor="middle" font-family="Outfit,Inter,sans-serif" font-size="8" font-weight="700" fill="#E5E7EB">INTERNET</text>
+      <text x="0" y="24" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="6.5" fill="${wanBg}">WAN NUBE</text>
+    </g>
+  `;
+
+  // B. Atacantes Externos
+  externalThreatNodes.forEach(node => {
+    const color = '#FF3860';
+    html += `
       <g>
-        ${h.status === 'crit' ? `<circle cx="${h.x}" cy="${h.y}" r="${r+5}" fill="${color}" opacity=".15">
-            <animate attributeName="r" values="${r+3};${r+10};${r+3}" dur="1.6s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values=".25;0;.25" dur="1.6s" repeatCount="indefinite"/>
-          </circle>` : ''}
-        <circle cx="${h.x}" cy="${h.y}" r="${r}" fill="#0B0F19" stroke="${color}" stroke-width="1.4" filter="url(#glow)"/>
-        <circle cx="${h.x}" cy="${h.y}" r="${r-3}" fill="${color}" opacity=".8"/>
-        <text x="${h.x}" y="${h.y + 22}" text-anchor="middle" font-family="Outfit,Inter,sans-serif" font-size="10" font-weight="600" fill="#E5E7EB">${h.label}</text>
-        <text x="${h.x}" y="${h.y + 33}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#64748B">${h.ip}</text>
+        <circle cx="${node.x}" cy="${node.y}" r="11" fill="${color}" opacity=".15">
+          <animate attributeName="r" values="9;14;9" dur="1.8s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".3;0;.3" dur="1.8s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="${node.x}" cy="${node.y}" r="6" fill="#0B0F19" stroke="${color}" stroke-width="1.5" filter="url(#glow)"/>
+        <circle cx="${node.x}" cy="${node.y}" r="3" fill="${color}"/>
+        <text x="${node.x}" y="${node.y - 10}" text-anchor="middle" font-family="Outfit,Inter,sans-serif" font-size="8" font-weight="700" fill="#FF3860">${node.label}</text>
+        <text x="${node.x}" y="${node.y + 17}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7.5" fill="#E5E7EB">${node.ip}</text>
       </g>
-    `);
+    `;
   });
+
+  // C. Router Core central
+  html += `
+    <g>
+      <circle cx="${cx}" cy="${cy}" r="48" fill="url(#coreGrad)"/>
+      <circle cx="${cx}" cy="${cy}" r="22" fill="#0B0F19" stroke="rgba(79,184,255,.6)" stroke-width="1.5"/>
+      <text x="${cx}" y="${cy-2}" text-anchor="middle" font-family="Outfit,Inter,sans-serif" font-size="10" font-weight="700" fill="#E5E7EB">CORE</text>
+      <text x="${cx}" y="${cy+10}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#4FB8FF">GATEWAY</text>
+    </g>
+  `;
+
+  // D. Nodos LAN
+  lanNodes.forEach(node => {
+    const isCompromised = node.status === 'crit';
+    const isSuspicious = node.status === 'warn';
+    const color = isCompromised ? '#FF3860' : isSuspicious ? '#FFB020' : '#22FF99';
+    
+    let r = node.isSensor ? 10 : 7.5;
+    
+    html += `
+      <g>
+        ${(isCompromised || isSuspicious) ? `
+          <circle cx="${node.x}" cy="${node.y}" r="${r+5}" fill="${color}" opacity=".15">
+            <animate attributeName="r" values="${r+3};${r+12};${r+3}" dur="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values=".25;0;.25" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+        ` : ''}
+        
+        <circle cx="${node.x}" cy="${node.y}" r="${r}" fill="#0B0F19" stroke="${color}" stroke-width="${node.isSensor ? 2.0 : 1.5}" filter="url(#glow)"/>
+        <circle cx="${node.x}" cy="${node.y}" r="${r-3.5}" fill="${color}" opacity=".9"/>
+        
+        <text x="${node.x}" y="${node.y + r + 13}" text-anchor="middle" font-family="Outfit,Inter,sans-serif" font-size="9" font-weight="600" fill="#E5E7EB">${node.label}</text>
+        <text x="${node.x}" y="${node.y + r + 22}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#64748B">${node.ip}</text>
+      </g>
+    `;
+  });
+
+  svg.innerHTML = html;
 }
 
 /* -------- Geo threat map — Globe.gl (Three.js) Kaspersky-style globe -------- */
@@ -2163,20 +2472,90 @@ async function loadCaptureStatus(){
   if (DEMO_MODE) return;
   try {
     const r = await fetch(`${API_BASE}/capture/status`);
+    if (r.status === 401) {
+      // Sesión expirada: detener intervalos, cerrar SSE; el fetch wrapper global
+      // ya está redirigiendo a /login, así que aquí solo limpiamos timers.
+      if (window.sensorInterval) clearInterval(window.sensorInterval);
+      if (window.statusInterval) clearInterval(window.statusInterval);
+      for (const k in intervalHandles) {
+        if (intervalHandles[k]) clearInterval(intervalHandles[k]);
+      }
+      if (sseSource) sseSource.close();
+      return;
+    }
     if (!r.ok) throw new Error();
     const s = await r.json();
     CAPTURE_STATE.running = !!s.running;
     CAPTURE_STATE.paused = !!s.paused;
-    CAPTURE_STATE.interface = s.interface;
+    if (CAPTURE_STATE.running) {
+      CAPTURE_STATE.interface = s.interface;
+    }
     CAPTURE_STATE.last_error = s.last_error;
     _setCaptureUi();
   } catch(_) {}
 }
 
-async function _captureCall(path){
+async function loadInterfaces() {
+  if (DEMO_MODE) return;
+  try {
+    const select = document.getElementById('selectInterface');
+    if (!select) return;
+    const r = await fetch(`${API_BASE}/capture/interfaces`);
+    if (!r.ok) throw new Error('Error al obtener interfaces');
+    const list = await r.json();
+    
+    select.innerHTML = '';
+    if (list.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No se encontraron interfaces';
+      select.appendChild(opt);
+      return;
+    }
+    
+    list.forEach(iface => {
+      const opt = document.createElement('option');
+      opt.value = iface.name;
+      let text = iface.description || iface.name;
+      if (iface.ip) {
+        text += ` (${iface.ip})`;
+      }
+      opt.textContent = text;
+      if (CAPTURE_STATE.interface === iface.name) {
+        opt.selected = true;
+        if (iface.ip) {
+          STATE.interfaceIp = iface.ip;
+        }
+      }
+      select.appendChild(opt);
+    });
+
+    if (!STATE.interfaceIp && list.length > 0) {
+      const activeOpt = list.find(x => x.name === select.value);
+      if (activeOpt && activeOpt.ip) {
+        STATE.interfaceIp = activeOpt.ip;
+      }
+    }
+
+    const selectedText = select.options[select.selectedIndex]?.text || '';
+    const lblSelected = document.getElementById('lblSelectedInterface');
+    if (lblSelected) {
+      lblSelected.textContent = selectedText;
+    }
+  } catch (err) {
+    console.error("Error cargando interfaces de red:", err);
+    showToast("Error al cargar interfaces de red");
+  }
+}
+
+async function _captureCall(path, body = null){
   if (DEMO_MODE) { showToast('Captura requiere modo real'); return null; }
   try {
-    const r = await fetch(`${API_BASE}/capture/${path}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+    const r = await fetch(`${API_BASE}/capture/${path}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body || {})
+    });
     if (!r.ok) throw new Error();
     return await r.json();
   } catch(err) {
@@ -2187,7 +2566,9 @@ async function _captureCall(path){
 async function toggleCapture(){
   if (!CAPTURE_STATE.running) {
     showToast('Iniciando captura…');
-    const s = await _captureCall('start');
+    const select = document.getElementById('selectInterface');
+    const selectedIface = select ? select.value : null;
+    const s = await _captureCall('start', selectedIface ? { interface: selectedIface } : null);
     if (s) {
       if (s.status === 'error') {
         showToast(`Error: ${s.error || 'Verifica Npcap + admin'}`);
@@ -2227,6 +2608,50 @@ document.addEventListener('DOMContentLoaded', () => {
   const pause = document.getElementById('btnCapturePause');
   if (power) power.addEventListener('click', toggleCapture);
   if (pause) pause.addEventListener('click', togglePauseCapture);
+  
+  const select = document.getElementById('selectInterface');
+  if (select) {
+    select.addEventListener('change', async (e) => {
+      const newIface = e.target.value;
+      if (!newIface) return;
+      const selectedText = e.target.options[e.target.selectedIndex]?.text || '';
+      const lblSelected = document.getElementById('lblSelectedInterface');
+      if (lblSelected) {
+        lblSelected.textContent = selectedText;
+      }
+      
+      // Guardar la selección en el estado local de la interfaz para que sea persistente en la sesión
+      CAPTURE_STATE.interface = newIface;
+      
+      // Si la captura de paquetes está activa, hacemos un reinicio en caliente (hot restart)
+      if (CAPTURE_STATE.running) {
+        showToast(`Reiniciando captura en ${selectedText}...`);
+        
+        // 1. Detener el sniffer activo en la interfaz anterior
+        await _captureCall('stop');
+        
+        // 2. Iniciar el sniffer en la nueva interfaz inalámbrica o cableada
+        const s = await _captureCall('start', { interface: newIface });
+        if (s) {
+          if (s.status === 'error') {
+            showToast(`Error: ${s.error || 'Verifica Npcap + administrador'}`);
+            CAPTURE_STATE.running = false;
+            CAPTURE_STATE.paused = false;
+            CAPTURE_STATE.interface = null;
+          } else {
+            showToast(`Captura activa en ${s.interface || 'nueva interfaz'}`);
+            CAPTURE_STATE.running = !!s.running;
+            CAPTURE_STATE.paused = !!s.paused;
+            CAPTURE_STATE.interface = s.interface;
+            CAPTURE_STATE.last_error = s.last_error;
+          }
+        }
+        _setCaptureUi();
+      } else {
+        showToast(`Interfaz preferida guardada: ${selectedText}`);
+      }
+    });
+  }
 });
 
 /* =====================================================
@@ -2306,6 +2731,7 @@ function openSettings(){
   $('#sSetSum').value  = DASHBOARD_PREFS.sumInterval; $('#vSetSum').textContent = DASHBOARD_PREFS.sumInterval;
   $('#sSetPps').value  = DASHBOARD_PREFS.ppsInterval; $('#vSetPps').textContent = DASHBOARD_PREFS.ppsInterval;
   $('#sSetBuf').value  = DASHBOARD_PREFS.bufferSize; $('#vSetBuf').textContent = DASHBOARD_PREFS.bufferSize;
+  loadInterfaces();
 }
 function closeSettings(){ setModal.classList.add('hidden'); setBackdrop.classList.add('hidden'); }
 $('#btnSettings').addEventListener('click', openSettings);
@@ -2376,11 +2802,43 @@ async function loadSensorInfo(){
     const s = await r.json();
     $('#liveStatusLabel').textContent = `LIVE · capturando en ${s.interface || '—'}`;
     const ch = s.notifications || {};
+    
+    // Diagnostic alert for OS Admin permissions
+    let adminAlert = '';
+    let settingsAdminAlert = '';
+    if (s.has_admin_privileges === false) {
+      adminAlert = `<div class="mt-2.5 bg-[#FF3860]/10 border border-[#FF3860]/20 text-[#FF3860] px-2.5 py-1.5 rounded text-[10px] leading-relaxed">
+        ⚠️ <b>Consola sin Privilegios de Admin:</b> El bloqueo activo de firewall en Windows/Linux está deshabilitado. Ejecuta el backend en una consola como Administrador (Windows) o root (Linux) para activarlo.
+      </div>`;
+      settingsAdminAlert = `<div id="settingsAdminWarning" class="bg-[#FF3860]/10 border border-[#FF3860]/20 text-[#FF3860] p-3 rounded text-[11px] leading-relaxed mt-2">
+        ⚠️ <b>Sin Privilegios de Administrador OS:</b> El bloqueo activo por firewall de Windows Defender / iptables no funcionará. Para activarlo, detén el servidor e inicialo de nuevo abriendo PowerShell/CMD como Administrador o ejecutando como root.
+      </div>`;
+    } else if (s.has_admin_privileges === true) {
+      adminAlert = `<div class="mt-2.5 text-[color:var(--ok)] text-[9px] font-mono uppercase tracking-wider">✓ Privilegios Admin OS: Activos</div>`;
+    }
+    
     $('#pmSensor').innerHTML =
       `<div>Interfaz: <span class="text-white">${s.interface || '—'}</span></div>` +
       `<div>Supabase: <span class="${s.supabase_connected ? 'text-[color:var(--ok)]' : 'text-[color:var(--crit)]'}">${s.supabase_connected ? 'conectado' : 'offline'}</span></div>` +
       `<div>Telegram: <span class="${ch.telegram ? 'text-[color:var(--ok)]' : 'text-[color:var(--text-mute)]'}">${ch.telegram ? 'activo' : 'no configurado'}</span></div>` +
-      `<div>Email: <span class="${ch.email ? 'text-[color:var(--ok)]' : 'text-[color:var(--text-mute)]'}">${ch.email ? 'activo' : 'no configurado'}</span></div>`;
+      `<div>Email: <span class="${ch.email ? 'text-[color:var(--ok)]' : 'text-[color:var(--text-mute)]'}">${ch.email ? 'activo' : 'no configurado'}</span></div>` +
+      adminAlert;
+      
+    // Dynamically insert or update the alert in Settings
+    const setModalBody = $('#setModal .p-5');
+    if (setModalBody) {
+      let existingWarning = document.getElementById('settingsAdminWarning');
+      if (existingWarning) existingWarning.remove();
+      if (settingsAdminAlert) {
+        // Insert right before the last action buttons div
+        const actionDiv = setModalBody.querySelector('.flex.items-center.gap-2.pt-2');
+        if (actionDiv) {
+          const warningContainer = document.createElement('div');
+          warningContainer.innerHTML = settingsAdminAlert;
+          setModalBody.insertBefore(warningContainer.firstChild, actionDiv);
+        }
+      }
+    }
   } catch(err) {
     $('#pmSensor').textContent = 'sensor offline';
   }
@@ -2398,15 +2856,28 @@ async function openInvestigate(srcIp){
   $('#invSub').textContent = `IP: ${srcIp}`;
   $('#invBody').innerHTML = `<div class="text-[color:var(--text-mute)] text-center py-10">cargando…</div>`;
   invModal.classList.remove('hidden'); invBackdrop.classList.remove('hidden');
+  
   if (DEMO_MODE) {
-    $('#invBody').innerHTML = `<div class="text-[color:var(--text-mute)] text-center py-10">Investigación requiere modo real (servidor SDAI activo)</div>`;
+    $('#invSub').textContent = `IP: ${srcIp} (Modo Demostración)`;
+    renderInvestigate({
+      geo: { city: 'Caracas', country: 'Venezuela', latitude: 10.4806, longitude: -66.9036 },
+      summary: { events_count: 350, alerts_count: 4, high_severity_count: 1, is_blacklisted: STATE.blacklist.includes(srcIp) },
+      ports: { "80": 240, "443": 85, "22": 25 },
+      protocols: { "TCP": 325, "UDP": 25 },
+      alerts: [
+        { severity: 'alta', threat_type: 'port_scan', description: 'Escaneo masivo de puertos detectado por el sensor', created_at: new Date().toISOString() }
+      ]
+    });
+    bindAiInvestigateEvents();
     return;
   }
+  
   try {
     const r = await fetch(`${API_BASE}/events/investigate/${encodeURIComponent(srcIp)}`);
     if (!r.ok) throw new Error();
     const data = await r.json();
     renderInvestigate(data);
+    bindAiInvestigateEvents();
   } catch(err) {
     console.error(err);
     $('#invBody').innerHTML = `<div class="text-[color:var(--crit)] text-center py-6">Error al investigar la IP</div>`;
@@ -2462,18 +2933,317 @@ function renderInvestigate(d){
           </div>
         `).join('')}
     </div>
+
+    <!-- AI Forensic Card -->
+    <div class="glass-tight p-3 border border-cyan-950 bg-[rgba(79,184,255,.01)] mt-2">
+      <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-cyan-900/10">
+        <span class="text-[10px] font-mono uppercase tracking-wider text-[color:var(--info)] flex items-center gap-1.5">
+          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-[color:var(--info)] animate-pulse" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3-1.912 5.886L4.2 10.8 10.088 12.71 12 18.6l1.912-5.89 5.888-1.91-5.888-1.91Z"/></svg>
+          Análisis Defensivo y Didáctico con IA
+        </span>
+        <span class="text-[10px] font-mono text-[color:var(--text-mute)]" id="invAiMode">gemini / offline</span>
+      </div>
+      
+      <div id="invAiContent" class="text-[11px] leading-relaxed text-[color:var(--text-dim)] space-y-2">
+        <p>¿Quieres entender qué tipo de amenaza representa esta IP, cómo la detectó el sensor y qué medidas didácticas de mitigación aplicar?</p>
+        <button id="btnGenerateAiAnalysis" class="btn btn-primary text-[11px] py-1.5 w-full flex items-center justify-center gap-1.5" style="background: linear-gradient(135deg, rgba(79,184,255,.2), rgba(79,184,255,.05)); border: 1px solid var(--info);">
+          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.886L4.2 10.8 10.088 12.71 12 18.6l1.912-5.89 5.888-1.91-5.888-1.91Z"/></svg>
+          Generar Diagnóstico Educativo con IA
+        </button>
+      </div>
+    </div>
   `;
 }
 
 function closeInvestigate(){ invModal.classList.add('hidden'); invBackdrop.classList.add('hidden'); invCurrentIp = null; }
 $('#invClose').addEventListener('click', closeInvestigate);
 invBackdrop.addEventListener('click', closeInvestigate);
-$('#invBlock').addEventListener('click', () => {
-  if (invCurrentIp) { addToBlacklist(invCurrentIp); showToast(`IP ${invCurrentIp} añadida a blacklist`); }
-});
+
+function bindAiInvestigateEvents() {
+  const btn = document.getElementById('btnGenerateAiAnalysis');
+  if (btn) {
+    btn.addEventListener('click', generateAiAnalysis);
+  }
+  const blockBtn = document.getElementById('invBlock');
+  if (blockBtn) {
+    if (STATE.blacklist.includes(invCurrentIp)) {
+      blockBtn.textContent = '🛡️ ¡Bloqueada en Firewall!';
+      blockBtn.style.color = '#9AF7C5';
+      blockBtn.style.borderColor = 'rgba(154,247,197,.4)';
+      blockBtn.style.background = 'rgba(154,247,197,.08)';
+      blockBtn.setAttribute('disabled', '');
+    } else {
+      blockBtn.textContent = 'Bloquear esta IP';
+      blockBtn.style.color = '#FFB0C9';
+      blockBtn.style.borderColor = 'rgba(255,56,96,.4)';
+      blockBtn.style.background = 'rgba(255,56,96,.08)';
+      blockBtn.removeAttribute('disabled');
+    }
+  }
+}
+
+async function generateAiAnalysis() {
+  if (!invCurrentIp) return;
+  const contentDiv = document.getElementById('invAiContent');
+  const modeSpan = document.getElementById('invAiMode');
+  if (!contentDiv) return;
+  
+  contentDiv.innerHTML = `
+    <div class="flex items-center gap-2 py-3 text-[color:var(--info)] justify-center font-mono">
+      <svg class="animate-spin h-4 w-4 text-[color:var(--info)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span>Analizando IP con IA de SDAI...</span>
+    </div>
+  `;
+  
+  try {
+    const r = await fetch(`${API_BASE}/ai/explain/${encodeURIComponent(invCurrentIp)}`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    
+    if (modeSpan) {
+      if (data.mode === 'groq') {
+        modeSpan.textContent = '⚡ GROQ IA';
+        modeSpan.style.color = '#9AF7C5';
+      } else if (data.mode === 'gemini') {
+        modeSpan.textContent = '⚡ GEMINI IA';
+        modeSpan.style.color = 'var(--info)';
+      } else {
+        modeSpan.textContent = '🤖 HEURÍSTICA LOCAL';
+        modeSpan.style.color = 'var(--warn)';
+      }
+    }
+    
+    let parsedText = data.analysis || '';
+    parsedText = parsedText
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/### (.*?)\n/g, '<h4 class="font-semibold text-[color:var(--info)] mt-2">$1</h4>')
+      .replace(/## (.*?)\n/g, '<h3 class="font-bold text-[color:var(--info)] mt-2">$1</h3>')
+      .replace(/^- (.*?)\n/gm, '<li class="ml-4 list-disc">$1</li>')
+      .replace(/\n/g, '<br>');
+
+    contentDiv.innerHTML = `
+      <div class="space-y-2 max-h-[22vh] overflow-y-auto pr-1 text-[11px] leading-relaxed font-sans scrollbar-thin">
+        ${parsedText}
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+    contentDiv.innerHTML = `
+      <div class="text-[color:var(--crit)] text-center py-2 font-mono">
+        Error al invocar la IA. Verifica tu conexión o credenciales.
+      </div>
+    `;
+  }
+}
+
+async function blockIpWithFirewall() {
+  if (!invCurrentIp) return;
+  const blockBtn = document.getElementById('invBlock');
+  if (!blockBtn) return;
+  
+  if (DEMO_MODE) {
+    addToBlacklist(invCurrentIp);
+    showToast(`Modo Demo: ${invCurrentIp} añadido al filtro del Dashboard`);
+    return;
+  }
+  
+  const originalText = blockBtn.textContent;
+  blockBtn.setAttribute('disabled', '');
+  blockBtn.textContent = 'Bloqueando con IA...';
+  
+  try {
+    const r = await fetch(`${API_BASE}/ai/block/${encodeURIComponent(invCurrentIp)}`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    
+    // Add to local state blacklist
+    addToBlacklist(invCurrentIp);
+    showToast(`IP ${invCurrentIp} bloqueada exitosamente`);
+    
+    // Update button visual state
+    blockBtn.textContent = '🛡️ ¡Bloqueada en Firewall!';
+    blockBtn.style.color = '#9AF7C5';
+    blockBtn.style.borderColor = 'rgba(154,247,197,.4)';
+    blockBtn.style.background = 'rgba(154,247,197,.08)';
+    
+    const contentDiv = document.getElementById('invAiContent');
+    if (contentDiv) {
+      let parsed = data.explanation || '';
+      parsed = parsed
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/- (.*?)\n/g, '<li class="ml-4 list-disc">$1</li>')
+        .replace(/\n/g, '<br>');
+      contentDiv.innerHTML += `
+        <div class="mt-3 p-2.5 rounded border border-green-900/20 bg-green-950/5 text-green-300 font-sans text-[11px] leading-relaxed">
+          ${parsed}
+        </div>
+      `;
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Error al aplicar bloqueo en Firewall');
+    blockBtn.removeAttribute('disabled');
+    blockBtn.textContent = originalText;
+  }
+}
+
+$('#invBlock').addEventListener('click', blockIpWithFirewall);
+
 $('#invFilter').addEventListener('click', () => {
   if (invCurrentIp) { searchTerm = invCurrentIp; openSearch(); searchInput.value = invCurrentIp; applySearchFilter(); closeInvestigate(); }
 });
+
+/* =====================================================
+   SDAI IA Copilot / Asistente Sidebar Handlers
+   ===================================================== */
+const academyModal = $('#academyModal');
+const academyBackdrop = $('#academyBackdrop');
+let academyChatHistory = [];
+
+function openAcademy() {
+  academyModal.classList.remove('hidden');
+  // Small delay to allow 'hidden' class removal to paint, triggering CSS transition
+  setTimeout(() => {
+    academyModal.classList.add('open');
+  }, 20);
+  academyBackdrop.classList.remove('hidden');
+}
+
+function closeAcademy() {
+  academyModal.classList.remove('open');
+  setTimeout(() => {
+    academyModal.classList.add('hidden');
+  }, 300);
+  academyBackdrop.classList.add('hidden');
+}
+
+
+async function sendAcademyChatMessage() {
+  const input = $('#academyChatInput');
+  const chatArea = $('#academyChatArea');
+  if (!input) return;
+  const msg = input.value.trim();
+  if (!msg) return;
+  
+  input.value = '';
+  
+  chatArea.innerHTML += `
+    <div class="self-end max-w-[85%] rounded-lg p-3 bg-[rgba(79,184,255,.15)] text-white border border-blue-400/20">
+      <div class="font-semibold text-[10px] text-[color:var(--info)] mb-1">TÚ (ANALISTA)</div>
+      <p class="leading-relaxed font-sans">${msg.replace(/\n/g, '<br>')}</p>
+    </div>
+  `;
+  
+  chatArea.scrollTop = chatArea.scrollHeight;
+  academyChatHistory.push({ sender: 'user', text: msg });
+  
+  const loadId = 'chat-load-' + Date.now();
+  chatArea.innerHTML += `
+    <div id="${loadId}" class="self-start max-w-[85%] rounded-lg p-3 glass-tight text-white border border-blue-900/10 flex items-center gap-1.5 font-mono text-[11px]">
+      <svg class="animate-spin h-3.5 w-3.5 text-[color:var(--info)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span>Copilot analizando tu pregunta...</span>
+    </div>
+  `;
+  chatArea.scrollTop = chatArea.scrollHeight;
+  
+  try {
+    const r = await fetch(`${API_BASE}/ai/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, history: academyChatHistory })
+    });
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    
+    const loader = document.getElementById(loadId);
+    if (loader) loader.remove();
+    
+    let reply = data.reply || '';
+    reply = reply
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/### (.*?)\n/g, '<h4 class="font-semibold text-[color:var(--info)] mt-2">$1</h4>')
+      .replace(/## (.*?)\n/g, '<h3 class="font-bold text-[color:var(--info)] mt-2">$1</h3>')
+      .replace(/^- (.*?)\n/gm, '<li class="ml-4 list-disc">$1</li>')
+      .replace(/\n/g, '<br>');
+      
+    chatArea.innerHTML += `
+      <div class="self-start max-w-[85%] rounded-lg p-3 glass-tight text-white border border-blue-900/10">
+        <div class="font-semibold text-[10px] text-[color:var(--info)] mb-1">🤖 COPILOT IA (${data.mode === 'groq' ? 'Groq IA' : data.mode === 'gemini' ? 'Gemini IA' : 'Modo Heurístico'})</div>
+        <p class="leading-relaxed font-sans">${reply}</p>
+      </div>
+    `;
+    chatArea.scrollTop = chatArea.scrollHeight;
+    
+    academyChatHistory.push({ sender: 'tutor', text: data.reply });
+  } catch (err) {
+    console.error(err);
+    const loader = document.getElementById(loadId);
+    if (loader) loader.remove();
+    
+    chatArea.innerHTML += `
+      <div class="self-start max-w-[85%] rounded-lg p-3 glass-tight text-[color:var(--crit)] border border-red-900/20 font-mono">
+        Error al conectar con el Asistente de Ciberseguridad. Inténtalo de nuevo.
+      </div>
+    `;
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+}
+
+// Bind top menu Academy clicks
+document.addEventListener('DOMContentLoaded', () => {
+  const btnAcademy = document.getElementById('btnAcademy');
+  const academyClose = document.getElementById('academyClose');
+  const btnAcademySend = document.getElementById('btnAcademySend');
+  const academyChatInput = document.getElementById('academyChatInput');
+  const academyResetChat = document.getElementById('academyResetChat');
+  
+  if (btnAcademy) btnAcademy.addEventListener('click', openAcademy);
+  if (academyClose) academyClose.addEventListener('click', closeAcademy);
+  if (academyBackdrop) academyBackdrop.addEventListener('click', closeAcademy);
+  
+  // Bind suggestions buttons
+  $$('.quick-prompt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const prompt = btn.getAttribute('data-prompt');
+      if (academyChatInput && prompt) {
+        academyChatInput.value = prompt;
+        sendAcademyChatMessage();
+      }
+    });
+  });
+  
+  if (btnAcademySend) btnAcademySend.addEventListener('click', sendAcademyChatMessage);
+  if (academyChatInput) {
+    academyChatInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendAcademyChatMessage();
+    });
+  }
+  
+  if (academyResetChat) {
+    academyResetChat.addEventListener('click', () => {
+      academyChatHistory = [];
+      const chatArea = $('#academyChatArea');
+      if (chatArea) {
+        chatArea.innerHTML = `
+          <div class="self-start max-w-[85%] rounded-lg p-3 glass-tight text-white border border-blue-900/10">
+            <div class="font-semibold text-[10px] text-[color:var(--info)] mb-1">🤖 COPILOT IA</div>
+            <p class="leading-relaxed text-[11px]">¡Historial limpio! Soy tu <strong>Copilot de Ciberseguridad con IA</strong>.
+            ¿Qué concepto o evento del panel te gustaría analizar hoy?</p>
+          </div>
+        `;
+      }
+    });
+  }
+});
+
 
 /* =====================================================
    Drawer extras: Copy JSON · Follow flow · Hex tab
@@ -2566,27 +3336,91 @@ buildAlertCard = function(a){
   return card;
 };
 
+/* -------- Session Checking & Authentication Controls -------- */
+async function checkSession() {
+  if (DEMO_MODE) return true;
+  try {
+    const res = await fetch(`${API_BASE}/auth/session`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.authenticated;
+  } catch (err) {
+    console.error("Error comprobando sesión:", err);
+    return false;
+  }
+}
+
+async function runInitRealMode() {
+  try { await loadSensorInfo(); } catch(e) { console.error("Error al cargar info del sensor:", e); }
+  try { await loadCaptureStatus(); } catch(e) { console.error("Error al cargar estado de captura:", e); }
+  try { await loadInterfaces(); } catch(e) { console.error("Error al cargar interfaces:", e); }
+  try { await loadConfig(); } catch(e) { console.error("Error al cargar configuración:", e); }
+  try { await loadAlerts(); } catch(e) { console.error("Error al cargar alertas:", e); }
+  try { await loadSummaryStats(); } catch(e) { console.error("Error al cargar estadísticas resumen:", e); }
+  try { await loadPps(); } catch(e) { console.error("Error al cargar PPS:", e); }
+  try { await loadTrend(); } catch(e) { console.error("Error al cargar tendencia:", e); }
+  
+  try { connectSSE(); } catch(e) { console.error("Error conectando SSE:", e); }
+  try { restartIntervals(); } catch(e) { console.error("Error al iniciar intervalos de refresco:", e); }
+  
+  // Clear any existing intervals first if re-logging in
+  if (window.sensorInterval) clearInterval(window.sensorInterval);
+  if (window.statusInterval) clearInterval(window.statusInterval);
+  
+  window.sensorInterval = setInterval(() => { try { loadSensorInfo(); } catch(e){} }, 30000);
+  window.statusInterval = setInterval(() => { try { loadCaptureStatus(); } catch(e){} }, 5000);
+}
+
+/* ----- Auth Events -----
+   Inline login form was removed; the standalone /login page handles credentials.
+   Only the logout shortcut from the profile menu remains here. */
+$('#pmLogout').addEventListener('click', async () => {
+  if (DEMO_MODE) return;
+  profileMenu.classList.add('hidden');
+  try {
+    const res = await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+    if (res.ok) {
+      showToast('Sesión de analista cerrada.');
+    }
+  } catch (err) {
+    console.error('Error cerrando sesión:', err);
+  } finally {
+    // Clear all intervals, close SSE, and show the login overlay
+    if (window.sensorInterval) clearInterval(window.sensorInterval);
+    if (window.statusInterval) clearInterval(window.statusInterval);
+    for (const k in intervalHandles) {
+      if (intervalHandles[k]) clearInterval(intervalHandles[k]);
+    }
+    if (sseSource) sseSource.close();
+    // Hard redirect to the standalone SOC login page
+    window.location.replace('/login');
+  }
+});
+
 /* -------- Initialization Entrypoint -------- */
 async function init(){
   initHeartbeat();
   renderTrend();
 
-  await checkMode();
+  try {
+    await checkMode();
+  } catch(e) {
+    console.error("Error al verificar modo:", e);
+    DEMO_MODE = true;
+  }
 
   if (DEMO_MODE) {
     initDemoMode();
   } else {
-    await loadSensorInfo();
-    await loadCaptureStatus();
-    await loadConfig();
-    await loadAlerts();
-    await loadSummaryStats();
-    await loadPps();
-    await loadTrend();
-    connectSSE();
-    restartIntervals();
-    setInterval(loadSensorInfo, 30000);
-    setInterval(loadCaptureStatus, 5000);
+    // /dashboard is server-side gated. We still double-check here so a stale tab
+    // whose cookie expired sees the redirect immediately instead of after the
+    // first API call fires the global 401 wrapper.
+    const loggedIn = await checkSession();
+    if (loggedIn) {
+      await runInitRealMode();
+    } else {
+      window.location.replace('/login');
+    }
   }
 }
 init();

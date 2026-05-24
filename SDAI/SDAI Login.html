@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SDAI SOC Console — Acceso</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.456.0/dist/umd/lucide.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07090f;
+    --bg-2:#0a0e18;
+    --panel:#0c111c;
+    --info:#4FB8FF;
+    --info-soft:#3a8fdb;
+    --emerald:#9AF7C5;
+    --emerald-deep:#2dd4a5;
+    --alert:#FF3860;
+    --text:#cfd6e4;
+    --text-dim:#7b8499;
+    --text-faint:#4a5267;
+    --border:rgba(79,184,255,0.12);
+    --border-strong:rgba(79,184,255,0.28);
+  }
+  html,body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;}
+  .font-display{font-family:'Orbitron',sans-serif;letter-spacing:0.04em;}
+  .font-mono{font-family:'JetBrains Mono',monospace;}
+
+  /* CYBER GRID BG */
+  .cyber-grid{
+    background-image:
+      linear-gradient(rgba(79,184,255,0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,184,255,0.055) 1px, transparent 1px);
+    background-size: 56px 56px;
+    background-position: center center;
+    mask-image: radial-gradient(ellipse at 30% 50%, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at 30% 50%, black 30%, transparent 80%);
+  }
+  .cyber-grid-fine{
+    background-image:
+      linear-gradient(rgba(79,184,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,184,255,0.04) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+
+  .right-glow{
+    background:
+      radial-gradient(800px 600px at -10% 50%, rgba(79,184,255,0.18), transparent 60%),
+      radial-gradient(600px 500px at 110% 110%, rgba(154,247,197,0.06), transparent 60%),
+      linear-gradient(180deg, rgba(10,14,24,0.85), rgba(7,9,15,0.95));
+  }
+
+  @keyframes pulseDot {
+    0%,100% { box-shadow: 0 0 0 0 rgba(154,247,197,0.7); transform:scale(1); }
+    50% { box-shadow: 0 0 0 6px rgba(154,247,197,0); transform:scale(1.05); }
+  }
+  .pulse-dot{ animation: pulseDot 1.8s ease-in-out infinite; }
+
+  @keyframes ringPulse {
+    0% { transform:scale(0.8); opacity:0.7;}
+    100% { transform:scale(1.6); opacity:0;}
+  }
+  .ring-pulse::before, .ring-pulse::after{
+    content:""; position:absolute; inset:0; border-radius:9999px;
+    border:1px solid rgba(79,184,255,0.55);
+    animation: ringPulse 2.4s cubic-bezier(.4,0,.2,1) infinite;
+  }
+  .ring-pulse::after{ animation-delay:1.2s; }
+
+  /* Floating label */
+  .float-field { position:relative; }
+  .float-field input{
+    width:100%;
+    background: rgba(8,12,20,0.55);
+    border:1px solid rgba(120,140,170,0.18);
+    border-radius:10px;
+    padding:22px 14px 8px 42px;
+    color:#e6ecf6;
+    font-size:14px;
+    letter-spacing:0.01em;
+    outline:none;
+    transition: border-color .25s ease, box-shadow .25s ease, background .25s ease;
+  }
+  .float-field input::placeholder{ color:transparent; }
+  .float-field input:focus,
+  .float-field input:not(:placeholder-shown){
+    border-color: rgba(79,184,255,0.55);
+    background: rgba(11,18,32,0.75);
+  }
+  .float-field input:focus{
+    box-shadow: 0 0 0 4px rgba(79,184,255,0.10), 0 0 24px -4px rgba(79,184,255,0.45) inset;
+  }
+  .float-field label{
+    position:absolute;
+    left:42px;
+    top:50%;
+    transform: translateY(-50%);
+    color: #6e7894;
+    font-size:13px;
+    pointer-events:none;
+    transition: all .2s ease;
+    background: transparent;
+    letter-spacing:0.02em;
+  }
+  .float-field input:focus + label,
+  .float-field input:not(:placeholder-shown) + label{
+    top:12px;
+    transform: translateY(0);
+    font-size:10px;
+    color: var(--info);
+    letter-spacing:0.14em;
+    text-transform: uppercase;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .float-field .field-icon{
+    position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    color:#5a6986; transition:color .25s ease; pointer-events:none;
+  }
+  .float-field input:focus ~ .field-icon{ color: var(--info); }
+
+  .btn-access {
+    position:relative;
+    overflow:hidden;
+    background: linear-gradient(95deg, #1d6fc4 0%, #4FB8FF 45%, #1d6fc4 100%);
+    background-size: 220% 100%;
+    background-position: 0% 50%;
+    transition: background-position .6s ease, box-shadow .35s ease, transform .15s ease;
+    box-shadow: 0 0 0 1px rgba(79,184,255,0.4), 0 10px 30px -10px rgba(79,184,255,0.5);
+  }
+  .btn-access:hover{
+    background-position: 100% 50%;
+    box-shadow: 0 0 0 1px rgba(79,184,255,0.65), 0 18px 40px -8px rgba(79,184,255,0.7), 0 0 60px -10px rgba(79,184,255,0.45);
+  }
+  .btn-access:active{ transform: translateY(1px); }
+  .btn-access::after{
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform .8s ease;
+  }
+  .btn-access:hover::after{ transform: translateX(100%); }
+
+  .glass {
+    background: linear-gradient(180deg, rgba(20,28,44,0.55), rgba(10,14,22,0.55));
+    border:1px solid rgba(120,160,210,0.12);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px -16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  @keyframes floatY1 { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-8px);} }
+  @keyframes floatY2 { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(6px);} }
+  @keyframes floatY3 { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-5px);} }
+  .float-1{ animation: floatY1 6s ease-in-out infinite; }
+  .float-2{ animation: floatY2 7s ease-in-out infinite; }
+  .float-3{ animation: floatY3 8s ease-in-out infinite; }
+
+  @keyframes barPulse { 0%,100%{ opacity:0.45; } 50%{ opacity:1; } }
+  .signal-bar{ animation: barPulse 1.4s ease-in-out infinite; }
+
+  @keyframes scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(2000%); }
+  }
+  .scanline{
+    position:absolute; left:0; right:0; height:1px;
+    background: linear-gradient(90deg, transparent, rgba(79,184,255,0.45), transparent);
+    animation: scan 9s linear infinite;
+    pointer-events:none;
+  }
+
+  .lift{ transition: transform .35s cubic-bezier(.2,.7,.2,1), border-color .35s ease, box-shadow .35s ease; }
+  .lift:hover{ transform: translateY(-3px); border-color: rgba(79,184,255,0.35); }
+
+  .chk{
+    width:14px;height:14px;border-radius:3px;
+    border:1px solid rgba(120,140,170,0.4);
+    background: rgba(8,12,20,0.6);
+    display:inline-flex;align-items:center;justify-content:center;
+    transition:all .2s ease;
+    cursor:pointer;
+  }
+  .chk[data-checked="true"]{
+    border-color: var(--info);
+    background: rgba(79,184,255,0.18);
+    box-shadow: 0 0 0 3px rgba(79,184,255,0.10);
+  }
+
+  .noise::before{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image: radial-gradient(rgba(255,255,255,0.012) 1px, transparent 1px);
+    background-size: 3px 3px; opacity:.5;
+  }
+
+  .bracket{ position:absolute; width:14px; height:14px; border-color: rgba(79,184,255,0.5); }
+  .bracket.tl{ top:-1px; left:-1px; border-top:1px solid; border-left:1px solid; }
+  .bracket.tr{ top:-1px; right:-1px; border-top:1px solid; border-right:1px solid; }
+  .bracket.bl{ bottom:-1px; left:-1px; border-bottom:1px solid; border-left:1px solid; }
+  .bracket.br{ bottom:-1px; right:-1px; border-bottom:1px solid; border-right:1px solid; }
+
+  .link-cy{ position:relative; transition: color .2s ease; }
+  .link-cy:hover{ color: var(--info); }
+  .link-cy::after{
+    content:""; position:absolute; left:0; right:0; bottom:-2px; height:1px;
+    background: var(--info); transform: scaleX(0); transform-origin:left;
+    transition: transform .25s ease;
+  }
+  .link-cy:hover::after{ transform: scaleX(1); }
+
+  ::selection{ background: rgba(79,184,255,0.35); color:#fff; }
+  ::-webkit-scrollbar{ width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{ background: rgba(79,184,255,0.18); border-radius:8px;}
+
+  /* Loader spin (lucide loader2 icon) */
+  @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+  .spin-icon{ animation: spin 1s linear infinite; transform-origin: center; }
+
+</style>
+</head>
+<body class="min-h-screen overflow-x-hidden">
+
+<div class="min-h-screen flex flex-col lg:flex-row relative noise">
+
+  <!-- ============================================================
+       LEFT PANE (55%)
+  ============================================================ -->
+  <div class="relative overflow-hidden hidden lg:flex lg:w-[55%] flex-col">
+    <div class="absolute inset-0" style="
+      background:
+        radial-gradient(900px 700px at 20% 30%, rgba(79,184,255,0.18), transparent 60%),
+        radial-gradient(700px 600px at 80% 80%, rgba(154,247,197,0.07), transparent 60%),
+        linear-gradient(160deg,#070b14 0%, #0a1020 60%, #060810 100%);
+    "></div>
+    <div class="absolute inset-0 cyber-grid-fine opacity-30"
+         style="mask-image:radial-gradient(ellipse at 30% 50%, black 10%, transparent 75%);"></div>
+    <div class="absolute inset-0 cyber-grid"></div>
+
+    <!-- perspective lines -->
+    <svg class="absolute inset-0 w-full h-full opacity-[0.18]" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="lg" x1="0" x2="1">
+          <stop offset="0%" stop-color="#4FB8FF" stop-opacity="0"/>
+          <stop offset="50%" stop-color="#4FB8FF" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#4FB8FF" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <line x1="0" x2="100%" y1="12%"  y2="18%"  stroke="url(#lg)" stroke-width="0.5"/>
+      <line x1="0" x2="100%" y1="24%"  y2="30%"  stroke="url(#lg)" stroke-width="0.5"/>
+      <line x1="0" x2="100%" y1="36%"  y2="42%"  stroke="url(#lg)" stroke-width="0.5"/>
+      <line x1="0" x2="100%" y1="48%"  y2="54%"  stroke="url(#lg)" stroke-width="0.5"/>
+      <line x1="0" x2="100%" y1="60%"  y2="66%"  stroke="url(#lg)" stroke-width="0.5"/>
+      <line x1="0" x2="100%" y1="72%"  y2="78%"  stroke="url(#lg)" stroke-width="0.5"/>
+      <line x1="0" x2="100%" y1="84%"  y2="90%"  stroke="url(#lg)" stroke-width="0.5"/>
+      <line x1="0" x2="100%" y1="96%"  y2="102%" stroke="url(#lg)" stroke-width="0.5"/>
+    </svg>
+
+    <!-- network canvas (animated nodes + links) -->
+    <canvas id="networkCanvas" class="absolute inset-0 w-full h-full"></canvas>
+
+    <!-- scanline -->
+    <div class="scanline"></div>
+
+    <!-- concentric rings bottom-left -->
+    <svg class="absolute -bottom-32 -left-32 opacity-[0.20]" width="520" height="520" viewBox="0 0 520 520" fill="none">
+      <circle cx="260" cy="260" r="60"  stroke="#4FB8FF" stroke-width="0.5" stroke-dasharray="2 5"/>
+      <circle cx="260" cy="260" r="120" stroke="#4FB8FF" stroke-width="0.5" stroke-dasharray="2 5"/>
+      <circle cx="260" cy="260" r="180" stroke="#4FB8FF" stroke-width="0.5" stroke-dasharray="2 5"/>
+      <circle cx="260" cy="260" r="240" stroke="#4FB8FF" stroke-width="0.5" stroke-dasharray="2 5"/>
+      <circle cx="260" cy="260" r="260" stroke="#4FB8FF" stroke-width="0.4"/>
+    </svg>
+
+    <!-- CONTENT -->
+    <div class="relative z-10 flex flex-col h-full p-12 xl:p-16">
+
+      <!-- top bar -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="relative h-9 w-9 grid place-items-center rounded-lg border border-[rgba(79,184,255,0.35)] bg-[rgba(79,184,255,0.06)]">
+            <i data-lucide="shield-alert" class="text-[#4FB8FF]" style="width:18px;height:18px;stroke-width:1.6"></i>
+          </div>
+          <div class="flex flex-col leading-tight">
+            <span class="font-display text-[13px] text-white tracking-[0.18em]">SDAI / DEF·OPS</span>
+            <span class="font-mono text-[10px] text-[#6c789a]">v0.1.0 · sprint-8</span>
+          </div>
+        </div>
+
+        <div id="systemBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[rgba(154,247,197,0.25)] bg-[rgba(154,247,197,0.05)]">
+          <span class="h-1.5 w-1.5 rounded-full bg-[#9AF7C5] pulse-dot"></span>
+          <span class="font-mono text-[10px] tracking-[0.22em] text-[#9AF7C5]">SDAI DEFENSE SYSTEM · ACTIVO</span>
+        </div>
+      </div>
+
+      <!-- hero copy -->
+      <div class="mt-auto max-w-2xl">
+        <div class="font-mono text-[10px] tracking-[0.32em] text-[#5d80b0] mb-5 flex items-center gap-3">
+          <span class="h-px w-8 bg-[#4FB8FF]/60"></span> COMANDO · CONTROL · CONCIENCIA
+        </div>
+        <h1 class="font-display font-black text-white text-[68px] xl:text-[84px] leading-[0.92] tracking-tight">
+          SDAI <span style="background:linear-gradient(180deg,#4FB8FF 0%,#9AF7C5 100%);-webkit-background-clip:text;background-clip:text;color:transparent;">SOC</span>
+          <br/>
+          <span class="text-[#a9b6cf]">SUITE</span>
+        </h1>
+        <p class="mt-6 text-[#aab4cc] text-[15px] max-w-xl leading-relaxed">
+          Consola de Detección Inalámbrica y Control Defensivo en Tiempo Real para Pymes.
+          Identificación pasiva del espectro, mitigación asistida y forensia firmada.
+        </p>
+
+        <div class="flex flex-wrap items-center gap-2 mt-6">
+          <span class="font-mono text-[10px] tracking-[0.16em] text-[#7e8cad] uppercase px-2.5 py-1 rounded border border-[rgba(120,140,170,0.18)] bg-[rgba(255,255,255,0.02)]">802.11 a/b/g/n/ac</span>
+          <span class="font-mono text-[10px] tracking-[0.16em] text-[#7e8cad] uppercase px-2.5 py-1 rounded border border-[rgba(120,140,170,0.18)] bg-[rgba(255,255,255,0.02)]">MITRE D3FEND</span>
+          <span class="font-mono text-[10px] tracking-[0.16em] text-[#7e8cad] uppercase px-2.5 py-1 rounded border border-[rgba(120,140,170,0.18)] bg-[rgba(255,255,255,0.02)]">ISO/IEC 27001</span>
+          <span class="font-mono text-[10px] tracking-[0.16em] text-[#7e8cad] uppercase px-2.5 py-1 rounded border border-[rgba(120,140,170,0.18)] bg-[rgba(255,255,255,0.02)]">HMAC-SHA256</span>
+        </div>
+      </div>
+
+      <!-- telemetry row -->
+      <div class="mt-12 grid grid-cols-12 gap-5 items-end">
+
+        <!-- PPS CARD -->
+        <div class="col-span-4 flex justify-start">
+          <div class="glass lift relative p-4 w-[260px] float-1">
+            <span class="bracket tl"></span><span class="bracket tr"></span><span class="bracket bl"></span><span class="bracket br"></span>
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <i data-lucide="activity" class="text-[#4FB8FF]" style="width:13px;height:13px;stroke-width:1.6"></i>
+                <span class="font-mono text-[10px] tracking-[0.18em] text-[#8696b3] uppercase">Tasa de Paquetes</span>
+              </div>
+              <span class="font-mono text-[9px] tracking-widest text-[#9AF7C5]">LIVE</span>
+            </div>
+            <div class="flex items-end justify-between">
+              <div>
+                <div id="ppsValue" class="font-display text-2xl text-white tabular-nums leading-none">1,284</div>
+                <div class="font-mono text-[10px] text-[#6c789a] mt-1">pps · iface mon0</div>
+              </div>
+              <svg id="ppsSpark" width="180" height="48" viewBox="0 0 180 48" class="overflow-visible">
+                <defs>
+                  <linearGradient id="sg" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%"   stop-color="#4FB8FF" stop-opacity="0.45"/>
+                    <stop offset="100%" stop-color="#4FB8FF" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path id="ppsArea" d="" fill="url(#sg)"/>
+                <path id="ppsLine" d="" fill="none" stroke="#4FB8FF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle id="ppsDotOuter" cx="0" cy="0" r="5"   fill="#4FB8FF" opacity="0.25"/>
+                <circle id="ppsDotInner" cx="0" cy="0" r="2.2" fill="#4FB8FF"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- SENSOR CARD -->
+        <div class="col-span-4 flex justify-center">
+          <div class="glass lift relative p-4 w-[280px] float-2">
+            <span class="bracket tl"></span><span class="bracket tr"></span><span class="bracket bl"></span><span class="bracket br"></span>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <i data-lucide="radio-tower" class="text-[#9AF7C5]" style="width:13px;height:13px;stroke-width:1.6"></i>
+                <span class="font-mono text-[10px] tracking-[0.18em] text-[#8696b3] uppercase">Estado del Sensor</span>
+              </div>
+              <span class="h-1.5 w-1.5 rounded-full bg-[#9AF7C5] pulse-dot"></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="h-9 w-9 rounded-md border border-[rgba(154,247,197,0.25)] bg-[rgba(154,247,197,0.06)] grid place-items-center">
+                <i data-lucide="wifi" class="text-[#9AF7C5]" style="width:16px;height:16px;stroke-width:1.6"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="text-white text-sm font-medium leading-tight truncate">Archer T3U · AC1300</div>
+                <div class="font-mono text-[10px] text-[#7a8aae] mt-0.5">Modo Monitor · ch 6 (2.437 GHz)</div>
+              </div>
+            </div>
+            <div id="signalBars" class="flex items-end gap-[3px] mt-3 h-5"></div>
+          </div>
+        </div>
+
+        <!-- THREATS CARD -->
+        <div class="col-span-4 flex justify-end">
+          <div class="glass lift relative p-4 w-[240px] float-3">
+            <span class="bracket tl"></span><span class="bracket tr"></span><span class="bracket bl"></span><span class="bracket br"></span>
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <i data-lucide="shield-check" class="text-[#9AF7C5]" style="width:13px;height:13px;stroke-width:1.6"></i>
+                <span class="font-mono text-[10px] tracking-[0.18em] text-[#8696b3] uppercase">Amenazas Mitigadas</span>
+              </div>
+              <span class="font-mono text-[9px] tracking-widest text-[#FF3860]">24H</span>
+            </div>
+            <div id="threatCount" class="font-display text-[34px] text-white tabular-nums leading-none">14,684</div>
+            <div class="flex items-center gap-3 mt-2">
+              <div class="flex items-center gap-1 text-[#9AF7C5] text-[11px] font-mono">
+                <i data-lucide="trending-up" style="width:11px;height:11px;stroke-width:1.8"></i>+ 2.4%
+              </div>
+              <div class="flex-1 h-1 rounded-full bg-[rgba(255,255,255,0.06)] overflow-hidden">
+                <div class="h-full rounded-full" style="width: 78%; background: linear-gradient(90deg,#9AF7C5,#4FB8FF);"></div>
+              </div>
+              <div class="font-mono text-[10px] text-[#6c789a]">78%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ticker -->
+      <div class="mt-5">
+        <div class="glass relative p-4 w-[420px] max-w-full">
+          <span class="bracket tl"></span><span class="bracket tr"></span><span class="bracket bl"></span><span class="bracket br"></span>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <i data-lucide="terminal" class="text-[#4FB8FF]" style="width:13px;height:13px;stroke-width:1.6"></i>
+              <span class="font-mono text-[10px] tracking-[0.18em] text-[#8696b3] uppercase">Telemetría en Vivo</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="h-1.5 w-1.5 rounded-full bg-[#9AF7C5] pulse-dot"></span>
+              <span class="font-mono text-[9px] tracking-widest text-[#9AF7C5]">STREAMING</span>
+            </div>
+          </div>
+          <div class="space-y-1.5 font-mono text-[11px]">
+            <div class="flex items-center gap-3 leading-tight">
+              <span class="text-[#5b6789]" id="tick1">00:12:48</span>
+              <span class="px-1.5 py-px rounded text-[9px] tracking-widest" style="color:#FF3860;background:#FF386014;border:1px solid #FF386030;">CRIT</span>
+              <span class="text-[#aab4cc] truncate">Deauth flood detectado · BSSID 9C:1C:12:**:**</span>
+            </div>
+            <div class="flex items-center gap-3 leading-tight">
+              <span class="text-[#5b6789]" id="tick2">00:12:31</span>
+              <span class="px-1.5 py-px rounded text-[9px] tracking-widest" style="color:#FFB341;background:#FFB34114;border:1px solid #FFB34130;">WARN</span>
+              <span class="text-[#aab4cc] truncate">Rogue AP "Free_WiFi_5G" silenciado</span>
+            </div>
+            <div class="flex items-center gap-3 leading-tight">
+              <span class="text-[#5b6789]" id="tick3">00:12:09</span>
+              <span class="px-1.5 py-px rounded text-[9px] tracking-widest" style="color:#9AF7C5;background:#9AF7C514;border:1px solid #9AF7C530;">OK</span>
+              <span class="text-[#aab4cc] truncate">Handshake WPA2 validado · cliente 14</span>
+            </div>
+            <div class="flex items-center gap-3 leading-tight">
+              <span class="text-[#5b6789]" id="tick4">00:11:55</span>
+              <span class="px-1.5 py-px rounded text-[9px] tracking-widest" style="color:#4FB8FF;background:#4FB8FF14;border:1px solid #4FB8FF30;">INFO</span>
+              <span class="text-[#aab4cc] truncate">Firma HMAC-SHA256 sincronizada (RLS)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- footer -->
+      <div class="mt-8 flex items-center justify-between font-mono text-[10px] text-[#5b6789]">
+        <div class="flex items-center gap-4">
+          <span class="flex items-center gap-1.5"><i data-lucide="map-pin" class="text-[#4FB8FF]" style="width:10px;height:10px"></i> NODO-VE-BAR-01</span>
+          <span class="flex items-center gap-1.5"><i data-lucide="clock"   class="text-[#4FB8FF]" style="width:10px;height:10px"></i> UTC −04:00</span>
+          <span id="cpuMem" class="flex items-center gap-1.5"><i data-lucide="cpu" class="text-[#4FB8FF]" style="width:10px;height:10px"></i> CPU 12% · MEM 41%</span>
+        </div>
+        <span>© SDAI · TODOS LOS DERECHOS RESERVADOS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       RIGHT PANE (45%) — LOGIN FORM
+  ============================================================ -->
+  <div class="relative w-full lg:w-[45%] right-glow overflow-hidden">
+
+    <div class="absolute inset-0 opacity-[0.35]"
+         style="background:linear-gradient(rgba(79,184,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,184,255,0.04) 1px,transparent 1px); background-size:48px 48px; mask-image:radial-gradient(ellipse at 0% 50%, black 30%, transparent 80%);">
+    </div>
+
+    <div class="relative z-10 min-h-screen flex flex-col p-8 lg:p-12 xl:p-16">
+
+      <div class="flex items-center justify-between">
+        <div class="font-mono text-[10px] tracking-[0.22em] text-[#5b6789]">
+          <span class="text-[#4FB8FF]">›</span> SESSION/INIT · <span id="tlsTag">TLS 1.3</span>
+        </div>
+        <div class="font-mono text-[10px] tracking-[0.22em] text-[#5b6789]">
+          ID-AUDIT · #<span id="auditId">A7F4-93C2-1B</span>
+        </div>
+      </div>
+
+      <div class="flex-1 flex items-center">
+        <div class="w-full max-w-[420px] mx-auto">
+
+          <div class="flex flex-col items-center">
+            <div class="relative">
+              <div class="ring-pulse absolute inset-0 rounded-full"></div>
+              <div class="relative h-16 w-16 rounded-full grid place-items-center border border-[rgba(79,184,255,0.4)]"
+                   style="background:radial-gradient(circle at 30% 30%, rgba(79,184,255,0.25), rgba(7,9,15,0.9) 70%); box-shadow:0 0 40px -6px rgba(79,184,255,0.5), inset 0 0 22px rgba(79,184,255,0.2);">
+                <i data-lucide="shield-alert" class="text-[#4FB8FF]" style="width:28px;height:28px;stroke-width:1.8"></i>
+              </div>
+            </div>
+            <h2 class="mt-7 font-display text-white text-[22px] tracking-[0.22em]">
+              INICIAR SESIÓN DE CONTROL
+            </h2>
+            <p class="mt-2 text-[#7a8aae] text-[12px] font-mono tracking-wider">
+              Autorización requerida · Clearance ≥ L3
+            </p>
+          </div>
+
+          <form id="loginForm" class="mt-9 space-y-4" autocomplete="off" novalidate>
+
+            <div class="float-field">
+              <input id="usr" type="text" placeholder=" " autocomplete="username" />
+              <label for="usr">Usuario del Analista</label>
+              <span class="field-icon"><i data-lucide="user" style="width:15px;height:15px;stroke-width:1.6"></i></span>
+            </div>
+
+            <div class="float-field">
+              <input id="pwd" type="password" placeholder=" " autocomplete="current-password" />
+              <label for="pwd">Contraseña de Control</label>
+              <span class="field-icon"><i data-lucide="lock" style="width:15px;height:15px;stroke-width:1.6"></i></span>
+              <button id="togglePwd" type="button"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-[#6e7894] hover:text-[#4FB8FF] hover:bg-[rgba(79,184,255,0.08)] transition"
+                      aria-label="Mostrar/ocultar contraseña">
+                <i id="togglePwdIcon" data-lucide="eye" style="width:15px;height:15px;stroke-width:1.6"></i>
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <button id="rememberBtn" type="button" class="flex items-center gap-2 group">
+                <span id="rememberChk" class="chk" data-checked="true">
+                  <i data-lucide="check" class="text-[#4FB8FF]" style="width:10px;height:10px;stroke-width:2.4"></i>
+                </span>
+                <span class="text-[12px] text-[#8b97b4] group-hover:text-[#cfd6e4] transition">Mantener nodo de confianza</span>
+              </button>
+              <a href="#" class="link-cy text-[12px] text-[#8b97b4]"
+                 onclick="event.preventDefault(); alert('Solicita reinicio de credenciales al administrador SDAI desde Supabase (tabla users).');">
+                ¿Olvidó la clave?
+              </a>
+            </div>
+
+            <!-- error/info -->
+            <div id="loginError"
+                 class="hidden items-start gap-2 text-[12px] font-mono text-[#FF3860] bg-[rgba(255,56,96,0.06)] border border-[rgba(255,56,96,0.3)] rounded-md px-3 py-2">
+              <i data-lucide="alert-triangle" style="width:13px;height:13px;stroke-width:1.8"></i>
+              <span id="loginErrorMsg">Credenciales incorrectas.</span>
+            </div>
+
+            <!-- submit -->
+            <button id="submitBtn" type="submit"
+                    class="btn-access w-full h-12 rounded-[10px] mt-2 text-white font-display tracking-[0.22em] text-[13px] flex items-center justify-center gap-3 disabled:opacity-80">
+              <span id="submitLabel" class="flex items-center gap-3">
+                ACCEDER A CONSOLA
+                <i data-lucide="arrow-right" style="width:15px;height:15px;stroke-width:1.8"></i>
+              </span>
+              <span id="submitLoading" class="hidden flex items-center gap-3">
+                <i data-lucide="loader-2" class="spin-icon" style="width:15px;height:15px;stroke-width:2"></i>
+                VERIFICANDO FIRMA…
+              </span>
+            </button>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- footer legal -->
+      <div class="mt-8">
+        <div class="flex items-start gap-2 text-[10px] font-mono leading-relaxed text-[#5b6789] tracking-wider">
+          <i data-lucide="lock-keyhole" class="text-[#4FB8FF] mt-0.5 shrink-0" style="width:11px;height:11px;stroke-width:1.8"></i>
+          <p>
+            ACCESO RESTRINGIDO. Auditado por RLS local. IP registrada con firma criptográfica HMAC-SHA256.
+            Toda actividad es monitoreada y conservada por 365 días según política SDAI-SEC-007.
+          </p>
+        </div>
+        <div class="mt-3 flex items-center justify-between font-mono text-[9px] tracking-[0.22em] text-[#3f475f]">
+          <span>SDAI © 2026 · DEF·OPS</span>
+          <div class="flex items-center gap-4">
+            <a href="/docs" target="_blank" class="link-cy">API</a>
+            <a href="https://github.com/silvaisaac148" target="_blank" class="link-cy">SOPORTE</a>
+            <a href="/health" target="_blank" class="link-cy">STATUS</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   Lucide init + dynamic re-init helper
+============================================================ */
+function relucide() { try { window.lucide && window.lucide.createIcons(); } catch (_) {} }
+relucide();
+
+/* ============================================================
+   Already authenticated → jump to /dashboard
+============================================================ */
+(async function probeSession() {
+  try {
+    const r = await fetch('/auth/session', { credentials: 'same-origin' });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.authenticated) window.location.replace('/dashboard');
+    }
+  } catch (_) {}
+})();
+
+/* ============================================================
+   NETWORK CANVAS — animated nodes + links
+============================================================ */
+(function networkCanvas() {
+  const canvas = document.getElementById('networkCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = 0, h = 0, raf = 0;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    w = rect.width; h = rect.height;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  const ro = new ResizeObserver(resize);
+  ro.observe(canvas);
+
+  const N = 46;
+  const nodes = Array.from({ length: N }).map(() => ({
+    x: Math.random() * (w || 800),
+    y: Math.random() * (h || 600),
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+    r: Math.random() * 1.4 + 0.6,
+    kind: Math.random() < 0.08 ? 'hub' : (Math.random() < 0.2 ? 'alert' : 'std'),
+  }));
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        const a = nodes[i], b = nodes[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < 140 * 140) {
+          const alpha = (1 - d2 / (140 * 140)) * 0.35;
+          ctx.strokeStyle = 'rgba(79,184,255,' + alpha.toFixed(3) + ')';
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    for (const n of nodes) {
+      n.x += n.vx; n.y += n.vy;
+      if (n.x < 0 || n.x > w) n.vx *= -1;
+      if (n.y < 0 || n.y > h) n.vy *= -1;
+      let color = 'rgba(154,247,197,0.85)';
+      let glow  = 'rgba(154,247,197,0.45)';
+      if (n.kind === 'hub')   { color = 'rgba(79,184,255,0.95)'; glow = 'rgba(79,184,255,0.55)'; }
+      if (n.kind === 'alert') { color = 'rgba(255,56,96,0.9)';   glow = 'rgba(255,56,96,0.45)'; }
+      ctx.beginPath(); ctx.fillStyle = glow;
+      ctx.arc(n.x, n.y, n.r * 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.fillStyle = color;
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill();
+    }
+    raf = requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ============================================================
+   SPARKLINE (live oscillation)
+============================================================ */
+(function sparkline() {
+  const W = 180, H = 48, PAD = 4;
+  const lineEl  = document.getElementById('ppsLine');
+  const areaEl  = document.getElementById('ppsArea');
+  const dotOut  = document.getElementById('ppsDotOuter');
+  const dotIn   = document.getElementById('ppsDotInner');
+  const valueEl = document.getElementById('ppsValue');
+  if (!lineEl) return;
+
+  let values = Array.from({ length: 32 }, () => Math.random() * 100 + 40);
+  let pps = 1284;
+
+  function render() {
+    const max = Math.max(...values), min = Math.min(...values);
+    const span = Math.max(1, max - min);
+    const pts = values.map((v, i) => {
+      const x = PAD + (i / (values.length - 1)) * (W - PAD * 2);
+      const y = PAD + (1 - (v - min) / span) * (H - PAD * 2);
+      return [x, y];
+    });
+    const d = pts.map((p, i) => (i === 0 ? 'M' + p[0] + ',' + p[1] : 'L' + p[0] + ',' + p[1])).join(' ');
+    const area = d + ' L' + (W - PAD) + ',' + (H - PAD) + ' L' + PAD + ',' + (H - PAD) + ' Z';
+    const last = pts[pts.length - 1];
+    lineEl.setAttribute('d', d);
+    areaEl.setAttribute('d', area);
+    dotOut.setAttribute('cx', last[0]); dotOut.setAttribute('cy', last[1]);
+    dotIn .setAttribute('cx', last[0]); dotIn .setAttribute('cy', last[1]);
+    valueEl.textContent = pps.toLocaleString();
+  }
+  render();
+
+  setInterval(() => {
+    values.shift();
+    values.push(40 + Math.random() * 120 + (Math.sin(Date.now() / 700) + 1) * 30);
+    pps = Math.max(800, Math.min(2400, pps + Math.round((Math.random() - 0.5) * 180)));
+    render();
+  }, 420);
+})();
+
+/* ============================================================
+   SIGNAL BARS
+============================================================ */
+(function signalBars() {
+  const host = document.getElementById('signalBars');
+  if (!host) return;
+  const heights = [3, 5, 7, 9, 11, 9, 12, 10, 13, 11, 14, 12, 15];
+  let html = '';
+  heights.forEach((h, i) => {
+    html += '<div class="w-[3px] rounded-sm signal-bar" style="height:' + h + 'px; '
+         + 'background:' + (i > 9 ? '#9AF7C5' : 'rgba(154,247,197,0.55)') + '; '
+         + 'animation-delay:' + (i * 0.08) + 's"></div>';
+  });
+  html += '<div class="ml-auto font-mono text-[10px] text-[#9AF7C5]">−42 dBm</div>';
+  host.innerHTML = html;
+})();
+
+/* ============================================================
+   THREAT COUNTER
+============================================================ */
+(function threatCounter() {
+  const el = document.getElementById('threatCount');
+  if (!el) return;
+  let count = 14684;
+  setInterval(() => {
+    count += Math.floor(Math.random() * 3);
+    el.textContent = count.toLocaleString();
+  }, 900);
+})();
+
+/* ============================================================
+   System badge: ping /health and reflect state
+============================================================ */
+(async function systemBadge() {
+  const badge = document.getElementById('systemBadge');
+  if (!badge) return;
+  try {
+    const r = await fetch('/health', { credentials: 'same-origin' });
+    if (!r.ok) throw new Error();
+  } catch (_) {
+    badge.classList.remove('border-[rgba(154,247,197,0.25)]', 'bg-[rgba(154,247,197,0.05)]');
+    badge.classList.add('border-[rgba(255,56,96,0.3)]', 'bg-[rgba(255,56,96,0.05)]');
+    badge.innerHTML =
+      '<span class="h-1.5 w-1.5 rounded-full bg-[#FF3860] pulse-dot"></span>' +
+      '<span class="font-mono text-[10px] tracking-[0.22em] text-[#FF3860]">SDAI · BACKEND OFFLINE</span>';
+  }
+})();
+
+/* ============================================================
+   Toggle password visibility
+============================================================ */
+(function pwdToggle() {
+  const btn = document.getElementById('togglePwd');
+  const input = document.getElementById('pwd');
+  const icon = document.getElementById('togglePwdIcon');
+  if (!btn || !input) return;
+  btn.addEventListener('click', () => {
+    const isPwd = input.type === 'password';
+    input.type = isPwd ? 'text' : 'password';
+    icon.setAttribute('data-lucide', isPwd ? 'eye-off' : 'eye');
+    relucide();
+  });
+})();
+
+/* ============================================================
+   Remember checkbox
+============================================================ */
+(function rememberToggle() {
+  const btn  = document.getElementById('rememberBtn');
+  const chk  = document.getElementById('rememberChk');
+  if (!btn || !chk) return;
+  btn.addEventListener('click', () => {
+    const next = chk.dataset.checked !== 'true';
+    chk.dataset.checked = next ? 'true' : 'false';
+    chk.innerHTML = next
+      ? '<i data-lucide="check" class="text-[#4FB8FF]" style="width:10px;height:10px;stroke-width:2.4"></i>'
+      : '';
+    relucide();
+  });
+})();
+
+/* ============================================================
+   LOGIN SUBMIT — wired to POST /auth/login
+============================================================ */
+(function loginSubmit() {
+  const form    = document.getElementById('loginForm');
+  const userEl  = document.getElementById('usr');
+  const passEl  = document.getElementById('pwd');
+  const errBox  = document.getElementById('loginError');
+  const errMsg  = document.getElementById('loginErrorMsg');
+  const btn     = document.getElementById('submitBtn');
+  const lblIdle = document.getElementById('submitLabel');
+  const lblBusy = document.getElementById('submitLoading');
+
+  function showError(msg) {
+    errMsg.textContent = msg;
+    errBox.classList.remove('hidden');
+    errBox.classList.add('flex');
+  }
+  function clearError() {
+    errBox.classList.add('hidden');
+    errBox.classList.remove('flex');
+  }
+  function setBusy(busy) {
+    btn.disabled = busy;
+    if (busy) {
+      lblIdle.classList.add('hidden');
+      lblBusy.classList.remove('hidden'); lblBusy.classList.add('flex');
+    } else {
+      lblBusy.classList.add('hidden'); lblBusy.classList.remove('flex');
+      lblIdle.classList.remove('hidden');
+    }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearError();
+    const username = userEl.value.trim();
+    const password = passEl.value;
+    if (!username || !password) {
+      showError('Usuario y contraseña requeridos.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ username, password }),
+      });
+      if (r.status === 200) {
+        // Success — let the cookie settle then jump to dashboard
+        window.location.replace('/dashboard');
+        return;
+      }
+      let detail = 'Autenticación denegada · firma HMAC no coincide.';
+      try {
+        const j = await r.json();
+        if (j && j.detail) detail = j.detail;
+      } catch (_) {}
+      if (r.status === 429) {
+        detail = detail || 'Demasiados intentos. Espera 60s.';
+      }
+      showError(detail);
+    } catch (err) {
+      showError('No se pudo contactar al servidor SDAI. Verifica la API.');
+    } finally {
+      setBusy(false);
+    }
+  });
+})();
+
+/* ============================================================
+   Audit ID + clock rotation (cosmetic)
+============================================================ */
+(function auditRotate() {
+  const audit = document.getElementById('auditId');
+  if (!audit) return;
+  function rand(n) {
+    const chars = '0123456789ABCDEF';
+    let s = '';
+    for (let i = 0; i < n; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  setInterval(() => {
+    audit.textContent = rand(4) + '-' + rand(4) + '-' + rand(2);
+  }, 4200);
+})();
+</script>
+</body>
+</html>

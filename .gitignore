@@ -41,6 +41,12 @@ logs/
 *.zip
 *.tar.gz
 
+# Heavy Canva/bundler exports — keep only the lean handcrafted standalone files
+archived/
+SDAI/*.bundle-src.html
+SDAI/* (standalone).html
+traffic.jsonl
+
 # Local notes / screenshots
 imagenes de dudas/
 

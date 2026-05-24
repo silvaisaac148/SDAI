@@ -18,10 +18,10 @@ def test_health_returns_ok():
     assert "timestamp" in body
 
 
-def test_root_returns_metadata():
-    r = client.get("/")
-    assert r.status_code == 200
-    assert r.json()["name"] == "SDAI"
+def test_root_redirects_to_login_when_unauthenticated():
+    r = client.get("/", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/login"
 
 
 # ---------- Config endpoint (in-memory mode, no Supabase) ----------
