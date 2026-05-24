@@ -22,6 +22,8 @@ MVP académico para PyMEs del Estado Barinas, Venezuela. Captura tráfico de red
 **Imagen Docker:** `ghcr.io/silvaisaac148/sdai-sensor:0.1.0`
 **Docs entrega:** [`MANUAL_INSTALACION.md`](./MANUAL_INSTALACION.md) · [`API_REFERENCE.md`](./API_REFERENCE.md) · [`PRESENTACION.md`](./PRESENTACION.md) · [`GEMINI_VIDEO_PROMPT.md`](./GEMINI_VIDEO_PROMPT.md)
 
+> 🔑 **Tutor IA — usa TU propia key gratis.** SDAI integra opcional un tutor LLM (Groq o Gemini). La imagen Docker **NO contiene ninguna API key**. Si activas el tutor debes registrar tu propia cuenta gratuita (Groq: ~14,400 req/día) — ver [`MANUAL_INSTALACION.md §10.5`](./MANUAL_INSTALACION.md#105-configurar-tutor-ia-groq--gemini--opcional-pero-recomendado). Sin key configurada el tutor cae a respuestas heurísticas locales (funcional para demo).
+
 ---
 
 ## Arquitectura

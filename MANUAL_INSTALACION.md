@@ -19,6 +19,7 @@ Este manual está pensado para que **cualquier persona**, aún sin experiencia p
 8. [Crear cuenta Supabase + cargar schema](#8-crear-cuenta-supabase--cargar-schema)
 9. [Configurar Telegram para alertas](#9-configurar-telegram-para-alertas)
 10. [Configurar Gmail SMTP para alertas](#10-configurar-gmail-smtp-para-alertas)
+10.5. [Configurar tutor IA (Groq / Gemini) — opcional pero recomendado](#105-configurar-tutor-ia-groq--gemini--opcional-pero-recomendado)
 11. [Configurar el archivo .env completo](#11-configurar-el-archivo-env-completo)
 12. [Primer arranque y verificación](#12-primer-arranque-y-verificación)
 13. [Uso del dashboard SOC](#13-uso-del-dashboard-soc)
@@ -650,6 +651,116 @@ Reinicia SDAI. Las alertas severidad alta llegarán también por email.
 
 ---
 
+## 10.5. Configurar tutor IA (Groq / Gemini) — opcional pero recomendado
+
+SDAI incluye un **tutor pedagógico de ciberseguridad** integrado en el dashboard. Te explica cada alerta en lenguaje simple, propone planes de mitigación didácticos y responde preguntas sobre redes/seguridad. Útil para administradores no expertos y para enseñanza.
+
+### ⚠️ IMPORTANTE — Cada usuario debe usar su PROPIA API key
+
+> **La imagen Docker que distribuimos en GHCR NO incluye ninguna API key.**
+> Si activas el tutor IA, debes registrar **tu propia cuenta gratuita** en Groq o Google AI Studio y poner **tu propia key** en el `.env`. Esto es por dos razones:
+>
+> 1. **Costo:** las APIs IA cobran por uso (aunque tengan capa gratis). Si todos usan la misma key, esa cuota se agota en minutos y el servicio deja de funcionar para todos.
+> 2. **Privacidad:** tu key te pertenece. No la compartas, no la subas a Git, no la pegues en chats.
+>
+> **Sin API key configurada:** el tutor IA cae a **modo heurístico local** — respuestas pre-escritas para los 4 ataques principales. Funciona pero es más limitado. **Suficiente para demo y uso básico.**
+
+### Opción A — Groq (recomendado: gratis y rápido)
+
+Groq tiene la **mejor capa gratuita actual** (miles de requests/día) y respuestas en <1 segundo gracias a sus LPUs.
+
+**Pasos:**
+
+1. Ve a https://console.groq.com
+2. **Sign up** con Google o email (gratis, sin tarjeta de crédito).
+3. Verifica tu email.
+4. Una vez dentro: menú lateral → **API Keys** → **Create API Key**.
+5. Nombre: `SDAI`. Clic crear.
+6. **Copia la key inmediatamente** (formato: `gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx`). Solo se muestra una vez.
+7. Pega en tu `.env`:
+   ```env
+   GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   ```
+8. Reinicia SDAI.
+
+**Modelo usado:** `llama-3.3-70b-versatile` (configurado en `backend/app/routers/ai.py`).
+**Quota gratis (al 2026):** ~14,400 requests/día, 30 req/min. Más que suficiente para una PyME 24/7.
+
+### Opción B — Google Gemini (alternativa gratis)
+
+Funciona igual de bien, ligeramente más lento.
+
+**Pasos:**
+
+1. Ve a https://aistudio.google.com/apikey
+2. Inicia sesión con cuenta Google.
+3. **Create API key** → selecciona o crea un proyecto Google Cloud (gratis).
+4. Copia la key (formato: `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXX`).
+5. Pega en tu `.env`:
+   ```env
+   GEMINI_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXX
+   ```
+6. Reinicia SDAI.
+
+**Modelo usado:** `gemini-2.5-flash`.
+**Quota gratis (al 2026):** 1,500 requests/día, 15 req/min en plan free.
+
+### ¿Cuál elegir?
+
+| Criterio | Groq | Gemini |
+|----------|------|--------|
+| Velocidad respuesta | ⚡ <1s | 2-4s |
+| Quota diaria gratis | ~14,400 | 1,500 |
+| Calidad explicaciones técnicas | Excelente (Llama 3.3 70B) | Excelente (Gemini 2.5) |
+| Setup | Muy simple | Simple |
+| Tarjeta crédito requerida | ❌ No | ❌ No (plan free) |
+
+**Recomendación:** empieza con **Groq**. Si la quota no te alcanza, añade Gemini como fallback (SDAI intenta Groq primero, si falla intenta Gemini, si ambas fallan usa heurístico).
+
+### Puedes tener ambas activas
+
+SDAI prioriza en este orden:
+1. **Groq** (si `GROQ_API_KEY` presente)
+2. **Gemini** (si `GROQ_API_KEY` falla o vacía y `GEMINI_API_KEY` presente)
+3. **Heurístico local** (siempre disponible, sin internet)
+
+```env
+# Ambas activas → más resiliente
+GROQ_API_KEY=gsk_xxxxx
+GEMINI_API_KEY=AIzaSy_xxxxx
+```
+
+### Verificar que funciona
+
+Una vez configurada la key y reiniciado SDAI:
+1. Abre el dashboard.
+2. Encuentra una alerta y haz clic en **Explicar con IA** (botón en el panel de alertas).
+3. Debe responder con un análisis didáctico ~1-3 segundos.
+
+En la respuesta JSON del endpoint `/ai/explain/{ip}` verás el campo `"mode"`:
+- `"groq"` → respondió Groq ✅
+- `"gemini"` → respondió Gemini ✅
+- `"heuristic"` → ninguna key funcionó, usó respuesta local ⚠️
+
+### Costos reales esperados (PyME promedio)
+
+- **Tutor en uso normal:** ~50-200 explicaciones/día → bien dentro de capa gratis
+- **Cargas anormales:** si recibes 500+ alertas/día (DoS sostenido), considera bloquear primero a nivel firewall
+
+**No hay riesgo de "factura sorpresa":** las cuentas free se desactivan al alcanzar el límite, no cobran nada.
+
+### Buenas prácticas
+
+| ✅ Hacer | ❌ No hacer |
+|---------|-------------|
+| Crear cuenta propia con tu email PyME | Usar la key de otra persona |
+| Rotar la key cada 6 meses | Compartir la key por WhatsApp/email |
+| Si filtras la key sin querer: revocar en consola de inmediato | Subir `.env` a Git/repositorios públicos |
+| Monitorear uso en dashboard de Groq/Gemini | Asumir que la cuota es infinita |
+| Activar alertas de quota en Google Cloud | Hardcodear la key en código fuente |
+
+---
+
 ## 11. Configurar el archivo .env completo
 
 Resumen de **todas las variables**:
@@ -671,8 +782,8 @@ Resumen de **todas las variables**:
 | `SMTP_SENDER` | ❌ | Email "From" |
 | `SMTP_USE_TLS` | ❌ | `true` para puerto 587 |
 | `EMAIL_RECIPIENTS` | ❌ | Lista separada por coma |
-| `GEMINI_API_KEY` | ❌ | Para tutor IA en dashboard (Google Gemini) |
-| `GROQ_API_KEY` | ❌ | Alternativa a Gemini (más rápido) |
+| `GEMINI_API_KEY` | ❌ | Para tutor IA en dashboard (Google Gemini) — **TU propia key gratis** desde https://aistudio.google.com/apikey. NO compartir. Ver sección 10.5. |
+| `GROQ_API_KEY` | ❌ | Alternativa más rápida y mejor capa gratis — **TU propia key gratis** desde https://console.groq.com. Sección 10.5. |
 | `ADMIN_USERNAME` | ✅ | Usuario login dashboard (default `admin`) |
 | `ADMIN_PASSWORD` | ✅ | **CAMBIA SIEMPRE** la default |
 | `SESSION_SECRET_KEY` | ✅ | Genera con `secrets.token_urlsafe(48)` |

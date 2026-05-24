@@ -38,9 +38,29 @@ def _emit_security_warnings() -> None:
         )
 
 
+def _emit_ai_status() -> None:
+    """Boot-time clarity on which AI backend (if any) is wired."""
+    has_groq = bool((settings.GROQ_API_KEY or "").strip())
+    has_gemini = bool((settings.GEMINI_API_KEY or "").strip())
+    if has_groq and has_gemini:
+        logger.info("[AI] Groq + Gemini configurados. Orden de fallback: Groq → Gemini → heurístico local.")
+    elif has_groq:
+        logger.info("[AI] Groq activo (Llama 3.3 70B). Fallback: heurístico local.")
+    elif has_gemini:
+        logger.info("[AI] Gemini activo (gemini-2.5-flash). Fallback: heurístico local.")
+    else:
+        logger.warning(
+            "[AI] Sin GROQ_API_KEY ni GEMINI_API_KEY — el tutor IA usará respuestas heurísticas locales. "
+            "Para activar LLM real, registra TU propia key gratis (no compartas keys de terceros): "
+            "Groq https://console.groq.com  ·  Gemini https://aistudio.google.com/apikey  ·  "
+            "Detalles: MANUAL_INSTALACION.md §10.5"
+        )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     _emit_security_warnings()
+    _emit_ai_status()
     batch_writer.start()
     try:
         yield
