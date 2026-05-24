@@ -14,7 +14,7 @@ import hmac
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List, Optional
 
 import bcrypt
 from fastapi import APIRouter, Cookie, HTTPException, Response, status, Depends
@@ -216,3 +216,185 @@ async def get_session(sdai_session: Optional[str] = Cookie(None)):
     if username:
         return SessionResponse(authenticated=True, username=username)
     return SessionResponse(authenticated=False)
+
+
+# ---------- User management endpoints (admin only) ----------
+
+VALID_ROLES = {"admin", "viewer"}
+MIN_PASSWORD_LEN = 8
+
+
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "viewer"
+
+
+class UpdateUserRequest(BaseModel):
+    password: Optional[str] = None
+    role: Optional[str] = None
+    active: Optional[bool] = None
+
+
+def _resolve_role(username: str) -> str:
+    """Best-effort role lookup. Bootstrap admin (.env) always treated as admin."""
+    if username == settings.ADMIN_USERNAME:
+        return "admin"
+    user = _lookup_db_user(username)
+    return (user or {}).get("role", "viewer")
+
+
+def require_admin(current_user: str = Depends(get_current_user)) -> str:
+    """Dependency that enforces admin role for sensitive management endpoints."""
+    if _resolve_role(current_user) != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo administradores pueden gestionar usuarios."
+        )
+    return current_user
+
+
+def _validate_username(name: str) -> str:
+    name = (name or "").strip()
+    if not name or len(name) < 3 or len(name) > 50:
+        raise HTTPException(400, "Username debe tener entre 3 y 50 caracteres.")
+    if not all(c.isalnum() or c in "._-" for c in name):
+        raise HTTPException(400, "Username solo admite letras, números, '.', '_', '-'.")
+    return name
+
+
+def _validate_role(role: str) -> str:
+    if role not in VALID_ROLES:
+        raise HTTPException(400, f"Rol inválido. Valores: {sorted(VALID_ROLES)}")
+    return role
+
+
+def _validate_password(pw: str) -> str:
+    if not pw or len(pw) < MIN_PASSWORD_LEN:
+        raise HTTPException(400, f"Password mínimo {MIN_PASSWORD_LEN} caracteres.")
+    return pw
+
+
+@router.get("/users", response_model=List[dict], dependencies=[Depends(require_admin)])
+async def list_users():
+    """List all SDAI users (admin only). Never returns password_hash."""
+    client = get_client()
+    if client is None:
+        return []
+    try:
+        res = execute_with_retry(
+            lambda c: c.table("users")
+            .select("username, role, active, last_login_at, created_at")
+            .order("username")
+        )
+        return res.data or []
+    except Exception as e:
+        print(f"[auth] list users failed: {e}", file=sys.stderr)
+        raise HTTPException(500, "Error consultando usuarios.")
+
+
+@router.post("/users", status_code=201, dependencies=[Depends(require_admin)])
+async def create_user(body: CreateUserRequest):
+    """Create a new user. Admin only. Username must be unique."""
+    username = _validate_username(body.username)
+    role = _validate_role(body.role)
+    _validate_password(body.password)
+
+    client = get_client()
+    if client is None:
+        raise HTTPException(503, "Supabase no configurado.")
+
+    existing = _lookup_db_user(username)
+    if existing:
+        raise HTTPException(409, f"Usuario '{username}' ya existe.")
+
+    pw_hash = hash_password(body.password)
+    try:
+        execute_with_retry(
+            lambda c: c.table("users").insert({
+                "username": username,
+                "password_hash": pw_hash,
+                "role": role,
+                "active": True,
+            })
+        )
+        return {"username": username, "role": role, "active": True}
+    except Exception as e:
+        print(f"[auth] create user failed: {e}", file=sys.stderr)
+        raise HTTPException(500, "Error creando usuario.")
+
+
+@router.patch("/users/{username}", dependencies=[Depends(require_admin)])
+async def update_user(
+    username: str,
+    body: UpdateUserRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Update password / role / active state. Admin only. Cannot deactivate self."""
+    username = _validate_username(username)
+
+    client = get_client()
+    if client is None:
+        raise HTTPException(503, "Supabase no configurado.")
+
+    existing = _lookup_db_user(username)
+    if not existing:
+        raise HTTPException(404, f"Usuario '{username}' no encontrado.")
+
+    update: dict = {}
+    if body.password is not None:
+        _validate_password(body.password)
+        update["password_hash"] = hash_password(body.password)
+    if body.role is not None:
+        update["role"] = _validate_role(body.role)
+    if body.active is not None:
+        if username == current_user and body.active is False:
+            raise HTTPException(400, "No puedes desactivar tu propio usuario.")
+        update["active"] = body.active
+
+    if not update:
+        raise HTTPException(400, "Sin campos a actualizar.")
+
+    try:
+        execute_with_retry(
+            lambda c: c.table("users").update(update).eq("username", username)
+        )
+        return {"username": username, **{k: v for k, v in update.items() if k != "password_hash"}}
+    except Exception as e:
+        print(f"[auth] update user failed: {e}", file=sys.stderr)
+        raise HTTPException(500, "Error actualizando usuario.")
+
+
+@router.delete("/users/{username}", status_code=204, dependencies=[Depends(require_admin)])
+async def delete_user(username: str, current_user: str = Depends(get_current_user)):
+    """Permanently delete a user. Admin only. Cannot delete self or bootstrap env admin."""
+    username = _validate_username(username)
+    if username == current_user:
+        raise HTTPException(400, "No puedes eliminar tu propio usuario.")
+    if username == settings.ADMIN_USERNAME:
+        raise HTTPException(400, "No puedes eliminar el admin bootstrap (.env).")
+
+    client = get_client()
+    if client is None:
+        raise HTTPException(503, "Supabase no configurado.")
+
+    existing = _lookup_db_user(username)
+    if not existing:
+        raise HTTPException(404, f"Usuario '{username}' no encontrado.")
+
+    try:
+        execute_with_retry(
+            lambda c: c.table("users").delete().eq("username", username)
+        )
+    except Exception as e:
+        print(f"[auth] delete user failed: {e}", file=sys.stderr)
+        raise HTTPException(500, "Error eliminando usuario.")
+
+
+@router.get("/me", dependencies=[Depends(get_current_user)])
+async def me(current_user: str = Depends(get_current_user)):
+    """Return current user info including role (used by UI to show/hide admin actions)."""
+    return {
+        "username": current_user,
+        "role": _resolve_role(current_user),
+    }

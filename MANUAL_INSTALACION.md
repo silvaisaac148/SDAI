@@ -1095,6 +1095,17 @@ SDAI **no usa Firebase, Google Auth, Cloudflare Access, ni verificación por SMS
 
 Tú creas las cuentas de tu equipo. Ellos solo reciben usuario + password y ya pueden entrar.
 
+**Opción A1 — Desde el dashboard (recomendado, no técnico):**
+1. Login como admin en `https://tu-url/dashboard`
+2. Topbar → icono "Gestión de usuarios" (solo visible si eres admin)
+3. Sección "+ Crear nuevo usuario" → llena username, password (botón generar aleatoria) y rol
+4. Clic **Crear** → usuario insertado en Supabase
+5. Comparte credenciales por canal cifrado privado
+
+La tabla muestra todos los usuarios con acciones: cambiar password, alternar rol, activar/desactivar, eliminar. Cero terminal necesaria.
+
+**Opción A2 — Desde CLI (alternativa programática):**
+
 ```bash
 # 1. Asegurar que SUPABASE_URL/SUPABASE_KEY estén en .env (sección 8)
 

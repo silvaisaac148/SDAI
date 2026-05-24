@@ -36,11 +36,16 @@ La cookie es HMAC-SHA256 firmada con `SESSION_SECRET_KEY` + timestamp Unix. Resi
 
 ### `auth` — Autenticación
 
-| Método | Path | Descripción |
-|--------|------|-------------|
-| POST | `/auth/login` | Login con username + password. Rate-limit 5 intentos/min por IP. |
-| POST | `/auth/logout` | Cierra sesión (elimina cookie). |
-| GET | `/auth/me` | Devuelve usuario logueado actual. |
+| Método | Path | Descripción | Requiere |
+|--------|------|-------------|----------|
+| POST | `/auth/login` | Login con username + password. Rate-limit 5 intentos/min por IP. | público |
+| POST | `/auth/logout` | Cierra sesión (elimina cookie). | sesión |
+| GET | `/auth/session` | Verifica sesión actual. | público |
+| GET | `/auth/me` | Devuelve `{username, role}` del usuario logueado. | sesión |
+| GET | `/auth/users` | Lista todos los usuarios (sin password_hash). | admin |
+| POST | `/auth/users` | Crea usuario. Body: `{username, password, role}`. | admin |
+| PATCH | `/auth/users/{username}` | Update parcial: `{password?, role?, active?}`. | admin |
+| DELETE | `/auth/users/{username}` | Eliminación definitiva. No self, no bootstrap admin. | admin |
 
 **Login request:**
 ```json

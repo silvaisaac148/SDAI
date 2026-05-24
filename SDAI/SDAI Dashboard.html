@@ -358,6 +358,13 @@
         </svg>
       </button>
 
+      <button id="btnUsers" class="icon-btn hidden" title="Gestión de usuarios">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="8.5" cy="7" r="4"/>
+          <path d="M20 8v6M23 11h-6"/>
+        </svg>
+      </button>
       <button id="btnSettings" class="icon-btn" title="Ajustes">
         <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
       </button>
@@ -848,6 +855,79 @@
     <div class="flex items-center gap-2 pt-2 border-t border-[color:var(--line)]">
       <a href="/docs" target="_blank" class="btn btn-ghost flex-1 justify-center">Abrir Swagger /docs</a>
       <button id="setReset" class="btn flex-1 justify-center" style="border-color: rgba(255,56,96,.35); color:#FFB0C9;">Reiniciar sensor</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== USERS MANAGEMENT MODAL =================== -->
+<div id="usersBackdrop" class="hidden fixed inset-0 z-[55]" style="background: rgba(7,9,15,.45); backdrop-filter: blur(2px);"></div>
+<div id="usersModal" class="hidden fixed top-[8%] left-1/2 -translate-x-1/2 z-[56] w-[min(820px,94vw)] max-h-[84vh] overflow-hidden glass flex flex-col">
+  <div class="px-5 py-3.5 border-b border-[color:var(--line)] flex items-center gap-3">
+    <div class="w-1.5 h-6 rounded-sm" style="background: linear-gradient(180deg, var(--info), rgba(79,184,255,.2));"></div>
+    <div class="font-display text-[15px] font-semibold">Gestión de usuarios</div>
+    <span class="text-[10px] font-mono text-[color:var(--text-mute)]">admin only</span>
+    <div class="flex-1"></div>
+    <button id="usersClose" class="icon-btn"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6 18 18M18 6 6 18"/></svg></button>
+  </div>
+
+  <div class="p-5 overflow-y-auto" style="max-height: calc(84vh - 60px);">
+
+    <!-- Form crear -->
+    <details class="mb-4 glass p-3" open>
+      <summary class="text-[12px] font-semibold cursor-pointer select-none">+ Crear nuevo usuario</summary>
+      <div class="grid grid-cols-12 gap-2 mt-3">
+        <input id="newUserName" type="text" placeholder="username (3-50 chars)"
+               class="col-span-4 bg-[#07090f] text-white text-[12px] px-3 py-2 rounded border border-[color:var(--line)] focus:outline-none focus:border-[color:var(--info)]" />
+        <input id="newUserPwd" type="text" placeholder="password (min 8)"
+               class="col-span-4 bg-[#07090f] text-white text-[12px] px-3 py-2 rounded border border-[color:var(--line)] focus:outline-none focus:border-[color:var(--info)]" />
+        <select id="newUserRole"
+                class="col-span-2 bg-[#07090f] text-white text-[12px] px-2 py-2 rounded border border-[color:var(--line)] focus:outline-none focus:border-[color:var(--info)]">
+          <option value="viewer">viewer</option>
+          <option value="admin">admin</option>
+        </select>
+        <button id="btnCreateUser" class="col-span-2 btn justify-center text-[12px]"
+                style="border-color: rgba(79,184,255,.4); color: var(--info);">Crear</button>
+      </div>
+      <div class="flex items-center gap-2 mt-2">
+        <button id="btnGenPwd" type="button" class="text-[10px] font-mono px-2 py-1 rounded border border-[color:var(--line)] hover:bg-[rgba(148,163,184,.08)]">Generar password aleatoria</button>
+        <span id="usersFormMsg" class="text-[11px] font-mono"></span>
+      </div>
+    </details>
+
+    <!-- Listado -->
+    <div class="mb-2 flex items-center gap-2">
+      <span class="text-[12px] font-semibold">Usuarios existentes</span>
+      <span id="usersCount" class="text-[10px] font-mono text-[color:var(--text-mute)]">—</span>
+      <div class="flex-1"></div>
+      <button id="btnRefreshUsers" class="text-[10px] font-mono px-2 py-1 rounded border border-[color:var(--line)] hover:bg-[rgba(148,163,184,.08)]">Refrescar</button>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-[12px]">
+        <thead class="text-[10px] font-mono uppercase text-[color:var(--text-mute)] border-b border-[color:var(--line)]">
+          <tr>
+            <th class="text-left py-2 px-2">Usuario</th>
+            <th class="text-left py-2 px-2">Rol</th>
+            <th class="text-left py-2 px-2">Estado</th>
+            <th class="text-left py-2 px-2">Último login</th>
+            <th class="text-right py-2 px-2">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody">
+          <tr><td colspan="5" class="py-4 text-center text-[color:var(--text-mute)]">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4 p-3 rounded border border-[color:var(--line)] bg-[rgba(255,193,7,.05)] text-[11px] text-[color:var(--text-mute)] leading-relaxed">
+      <strong class="text-[color:var(--warning,#FFC107)]">Notas de seguridad:</strong>
+      <ul class="list-disc pl-5 mt-1 space-y-0.5">
+        <li>Las passwords NO se muestran. Solo se almacenan hashes bcrypt.</li>
+        <li>No puedes desactivar ni eliminar tu propio usuario actual.</li>
+        <li>El admin bootstrap del <code>.env</code> no se puede eliminar desde aquí.</li>
+        <li>Al cambiar password, las sesiones activas del usuario expiran al cabo de 18h máx.</li>
+        <li>Para revocación inmediata de todas las sesiones, rota <code>SESSION_SECRET_KEY</code> y reinicia.</li>
+      </ul>
     </div>
   </div>
 </div>
@@ -2737,6 +2817,177 @@ function closeSettings(){ setModal.classList.add('hidden'); setBackdrop.classLis
 $('#btnSettings').addEventListener('click', openSettings);
 $('#setClose').addEventListener('click', closeSettings);
 setBackdrop.addEventListener('click', closeSettings);
+
+/* ----- Users management modal (admin only) ----- */
+const usersModal = $('#usersModal'), usersBackdrop = $('#usersBackdrop');
+let CURRENT_USER = null;
+
+async function loadCurrentUser(){
+  if (DEMO_MODE) { CURRENT_USER = {username:'demo', role:'admin'}; $('#btnUsers').classList.remove('hidden'); return; }
+  try {
+    const r = await fetch('/auth/me', {credentials:'include'});
+    if (r.ok) {
+      CURRENT_USER = await r.json();
+      if (CURRENT_USER.role === 'admin') $('#btnUsers').classList.remove('hidden');
+    }
+  } catch(e) { console.warn('[users] me failed', e); }
+}
+
+function userFormMsg(text, ok){
+  const el = $('#usersFormMsg');
+  el.textContent = text || '';
+  el.style.color = ok ? 'var(--ok,#4ade80)' : 'var(--danger,#FF3860)';
+}
+
+function fmtUserDate(iso){
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleString('es-VE', {dateStyle:'short', timeStyle:'short'}); }
+  catch { return iso.slice(0,16); }
+}
+
+async function refreshUsersList(){
+  const tbody = $('#usersTableBody');
+  tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-[color:var(--text-mute)]">Cargando...</td></tr>';
+  try {
+    const r = await fetch('/auth/users', {credentials:'include'});
+    if (r.status === 403) {
+      tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-[color:var(--danger,#FF3860)]">Solo administradores</td></tr>';
+      return;
+    }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const users = await r.json();
+    $('#usersCount').textContent = `(${users.length})`;
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-[color:var(--text-mute)]">Sin usuarios</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map(u => {
+      const isMe = CURRENT_USER && u.username === CURRENT_USER.username;
+      const roleColor = u.role === 'admin' ? 'rgba(255,56,96,.15)' : 'rgba(79,184,255,.12)';
+      const roleText  = u.role === 'admin' ? '#FFB0C9' : 'var(--info)';
+      const stateColor = u.active ? '#4ade80' : '#94a3b8';
+      const stateText = u.active ? 'activo' : 'desactivado';
+      const meTag = isMe ? '<span class="text-[9px] font-mono px-1 ml-1 rounded bg-[rgba(79,184,255,.18)] text-[color:var(--info)]">tú</span>' : '';
+      return `
+        <tr class="border-b border-[color:var(--line)] hover:bg-[rgba(148,163,184,.04)]">
+          <td class="py-2 px-2 font-mono">${u.username}${meTag}</td>
+          <td class="py-2 px-2">
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded" style="background:${roleColor}; color:${roleText};">${u.role}</span>
+          </td>
+          <td class="py-2 px-2">
+            <span class="text-[10px] font-mono" style="color:${stateColor};">● ${stateText}</span>
+          </td>
+          <td class="py-2 px-2 font-mono text-[10px] text-[color:var(--text-mute)]">${fmtUserDate(u.last_login_at)}</td>
+          <td class="py-2 px-2 text-right">
+            <button class="usr-act text-[10px] font-mono px-2 py-1 rounded border border-[color:var(--line)] hover:bg-[rgba(148,163,184,.08)]"
+                    data-act="password" data-user="${u.username}">Cambiar pwd</button>
+            <button class="usr-act text-[10px] font-mono px-2 py-1 rounded border border-[color:var(--line)] hover:bg-[rgba(148,163,184,.08)]"
+                    data-act="role" data-user="${u.username}" data-current="${u.role}">${u.role === 'admin' ? '→ viewer' : '→ admin'}</button>
+            <button class="usr-act text-[10px] font-mono px-2 py-1 rounded border border-[color:var(--line)] hover:bg-[rgba(148,163,184,.08)]"
+                    data-act="toggle" data-user="${u.username}" data-current="${u.active}" ${isMe ? 'disabled style="opacity:.4; cursor:not-allowed"' : ''}>${u.active ? 'Desactivar' : 'Activar'}</button>
+            <button class="usr-act text-[10px] font-mono px-2 py-1 rounded border border-[#FF3860]/40 text-[#FFB0C9] hover:bg-[#FF3860]/10"
+                    data-act="delete" data-user="${u.username}" ${isMe ? 'disabled style="opacity:.4; cursor:not-allowed"' : ''}>Eliminar</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    // bind row actions
+    tbody.querySelectorAll('.usr-act').forEach(b => {
+      b.addEventListener('click', () => handleUserAction(b.dataset));
+    });
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-[color:var(--danger,#FF3860)]">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function handleUserAction({act, user, current}){
+  if (act === 'password') {
+    const pw = prompt(`Nueva password para "${user}" (mín 8 chars):`);
+    if (!pw) return;
+    if (pw.length < 8) { alert('Password mínimo 8 caracteres.'); return; }
+    await patchUser(user, {password: pw});
+  }
+  else if (act === 'role') {
+    const newRole = current === 'admin' ? 'viewer' : 'admin';
+    if (!confirm(`Cambiar rol de "${user}" a "${newRole}"?`)) return;
+    await patchUser(user, {role: newRole});
+  }
+  else if (act === 'toggle') {
+    const newActive = !(current === 'true');
+    if (!confirm(`${newActive ? 'Activar' : 'Desactivar'} a "${user}"?`)) return;
+    await patchUser(user, {active: newActive});
+  }
+  else if (act === 'delete') {
+    if (!confirm(`ELIMINAR permanentemente a "${user}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      const r = await fetch(`/auth/users/${encodeURIComponent(user)}`, {method:'DELETE', credentials:'include'});
+      if (r.ok || r.status === 204) refreshUsersList();
+      else { const e = await r.json().catch(()=>({})); alert('Error: ' + (e.detail || r.statusText)); }
+    } catch(e) { alert('Error: ' + e.message); }
+  }
+}
+
+async function patchUser(user, body){
+  try {
+    const r = await fetch(`/auth/users/${encodeURIComponent(user)}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (r.ok) refreshUsersList();
+    else { const e = await r.json().catch(()=>({})); alert('Error: ' + (e.detail || r.statusText)); }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function openUsersModal(){
+  if (!CURRENT_USER || CURRENT_USER.role !== 'admin') return;
+  usersModal.classList.remove('hidden');
+  usersBackdrop.classList.remove('hidden');
+  userFormMsg('');
+  refreshUsersList();
+}
+function closeUsersModal(){ usersModal.classList.add('hidden'); usersBackdrop.classList.add('hidden'); }
+$('#btnUsers').addEventListener('click', openUsersModal);
+$('#usersClose').addEventListener('click', closeUsersModal);
+usersBackdrop.addEventListener('click', closeUsersModal);
+$('#btnRefreshUsers').addEventListener('click', refreshUsersList);
+
+$('#btnGenPwd').addEventListener('click', () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+  let pw = '';
+  for (let i=0; i<16; i++) pw += chars[Math.floor(Math.random()*chars.length)];
+  $('#newUserPwd').value = pw;
+  userFormMsg('Password generada — cópiala antes de crear.', true);
+});
+
+$('#btnCreateUser').addEventListener('click', async () => {
+  const username = $('#newUserName').value.trim();
+  const password = $('#newUserPwd').value;
+  const role = $('#newUserRole').value;
+  if (!username || !password) { userFormMsg('Username y password requeridos.', false); return; }
+  if (password.length < 8) { userFormMsg('Password mínimo 8 caracteres.', false); return; }
+  try {
+    const r = await fetch('/auth/users', {
+      method:'POST',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, password, role})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (r.ok) {
+      userFormMsg(`Usuario "${username}" creado. ⚠️ Guarda la password — no se podrá recuperar.`, true);
+      $('#newUserName').value = '';
+      $('#newUserPwd').value = '';
+      refreshUsersList();
+    } else {
+      userFormMsg('Error: ' + (data.detail || r.statusText), false);
+    }
+  } catch(e) { userFormMsg('Error: ' + e.message, false); }
+});
+
+// Bootstrap: carga rol del usuario actual al abrir dashboard
+loadCurrentUser();
 
 function restartIntervals(){
   if (DEMO_MODE) return;
